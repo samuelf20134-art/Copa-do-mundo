@@ -452,11 +452,33 @@ def simulate_score(home: str, away: str) -> tuple[int, int]:
     return min(hg, 6), min(ag, 6)
 
 def store_simulated_match(m):
-    hg, ag = simulate_score(m["home"], m["away"])
-    st.session_state.results[m["id"]] = {"home_goals": hg, "away_goals": ag, "played": True}
-    make_auto_events(m["id"], m["home"], m["away"], hg, ag)
-    simulate_cards_for_match(m["id"], m["home"], m["away"])
-    return hg, ag
+    """
+    Simula uma partida da fase de grupos e sincroniza tudo que a interface usa:
+    - resultado lógico da classificação;
+    - inputs visuais do placar;
+    - checkbox de jogo confirmado;
+    - eventos automáticos de gols/assistências;
+    - cartões/fair play.
+    """
+    mid = m["id"]
+    home, away = m["home"], m["away"]
+    hg, ag = simulate_score(home, away)
+
+    st.session_state.results[mid] = {
+        "home_goals": int(hg),
+        "away_goals": int(ag),
+        "played": True
+    }
+
+    # Estes são os estados dos widgets number_input/checkbox da tela.
+    # Sem isso, a classificação muda, mas o placar visual fica 0x0.
+    st.session_state[f"{mid}_hg"] = int(hg)
+    st.session_state[f"{mid}_ag"] = int(ag)
+    st.session_state[f"{mid}_played"] = True
+
+    make_auto_events(mid, home, away, int(hg), int(ag))
+    simulate_cards_for_match(mid, home, away)
+    return int(hg), int(ag)
 
 
 def team_players(team: str):
@@ -468,45 +490,110 @@ def pure_player_name(display: str) -> str:
         return ""
     return display.split(" · ")[0]
 
+
+def display_from_pure_name(team: str, pure_name: str) -> str:
+    """
+    Converte o nome puro salvo nos eventos para o texto completo usado no selectbox.
+    Exemplo: "Neymar JR" -> "Neymar JR · FW · Santos FC".
+    """
+    if not pure_name:
+        return "Sem assistência"
+
+    options = team_players(team)
+    for option in options:
+        if option != "Sem assistência" and pure_player_name(option) == pure_name:
+            return option
+    return "Sem assistência"
+
 def make_auto_events(match_id, home, away, hg, ag):
+    """
+    Sorteia automaticamente autores dos gols e assistentes.
+    Além de salvar os eventos, preenche também os estados dos selectboxes,
+    para que a interface mostre os jogadores sorteados após simular grupo/partida.
+    """
     events = []
+
     for team, goals in [(home, hg), (away, ag)]:
         df = players_df[players_df["team"] == team].copy()
-        # Atacantes e meias têm mais chance de participar de gol.
-        weights = df["pos"].map({"FW": 5, "MF": 3, "DF": 1.2, "GK": .05}).fillna(1).to_numpy(dtype=float)
+
+        # Atacantes e meias têm mais chance de participar de gols.
+        weights = df["pos"].map({"FW": 5.0, "MF": 3.0, "DF": 1.2, "GK": 0.05}).fillna(1.0).to_numpy(dtype=float)
         weights = weights / weights.sum()
         names = df["display"].tolist()
-        for _ in range(goals):
-            scorer = np.random.choice(names, p=weights)
-            assist = np.random.choice(["Sem assistência"] + names, p=[0.18] + list(weights * 0.82))
-            if assist == scorer:
-                assist = "Sem assistência"
-            events.append({"team": team, "scorer": pure_player_name(scorer), "assist": pure_player_name(assist)})
+
+        for goal_n in range(int(goals)):
+            scorer_display = np.random.choice(names, p=weights)
+
+            assist_options = ["Sem assistência"] + names
+            assist_weights = [0.18] + list(weights * 0.82)
+            assist_display = np.random.choice(assist_options, p=assist_weights)
+
+            # Evita assistência para o próprio autor do gol.
+            if assist_display == scorer_display:
+                assist_display = "Sem assistência"
+
+            scorer_pure = pure_player_name(scorer_display)
+            assist_pure = pure_player_name(assist_display)
+
+            events.append({"team": team, "scorer": scorer_pure, "assist": assist_pure})
+
+            # Estados dos widgets selectbox já existentes.
+            scorer_key = f"{match_id}_{team}_g{goal_n}_scorer"
+            assist_key = f"{match_id}_{team}_g{goal_n}_assist"
+            st.session_state[scorer_key] = scorer_display
+            st.session_state[assist_key] = assist_display
+
     st.session_state.events[match_id] = events
 
 def render_goal_selectors(match_id: str, home: str, away: str, hg: int, ag: int):
-    total = hg + ag
+    """
+    Renderiza os selectboxes de gols e assistências.
+    Se a partida foi simulada, os campos já vêm preenchidos automaticamente.
+    """
+    total = int(hg) + int(ag)
     if total <= 0:
         st.session_state.events[match_id] = []
         return
 
     st.markdown("<span class='muted'>Eventos do jogo: escolha os autores dos gols e assistências.</span>", unsafe_allow_html=True)
-    events = []
-    cols = st.columns(2)
-    idx = 0
 
-    for team, goals in [(home, hg), (away, ag)]:
+    previous_events = st.session_state.events.get(match_id, [])
+    updated_events = []
+    cols = st.columns(2)
+
+    for team, goals in [(home, int(hg)), (away, int(ag))]:
         with cols[0 if team == home else 1]:
             st.markdown(f"**{FLAGS.get(team,'')} {team}**")
             options = team_players(team)
+            scorer_options = options[1:]
+
+            team_previous_events = [ev for ev in previous_events if ev.get("team") == team]
+
             for goal_n in range(goals):
                 scorer_key = f"{match_id}_{team}_g{goal_n}_scorer"
                 assist_key = f"{match_id}_{team}_g{goal_n}_assist"
-                scorer = st.selectbox(f"Gol {goal_n+1} - marcador", options[1:], key=scorer_key)
+
+                # Se já existe evento salvo, usa-o como valor inicial do widget.
+                if goal_n < len(team_previous_events):
+                    old_event = team_previous_events[goal_n]
+                    default_scorer = display_from_pure_name(team, old_event.get("scorer", ""))
+                    default_assist = display_from_pure_name(team, old_event.get("assist", ""))
+
+                    if default_scorer in scorer_options:
+                        st.session_state.setdefault(scorer_key, default_scorer)
+                    if default_assist in options:
+                        st.session_state.setdefault(assist_key, default_assist)
+
+                scorer = st.selectbox(f"Gol {goal_n+1} - marcador", scorer_options, key=scorer_key)
                 assist = st.selectbox(f"Gol {goal_n+1} - assistência", options, key=assist_key)
-                events.append({"team": team, "scorer": pure_player_name(scorer), "assist": pure_player_name(assist)})
-                idx += 1
-    st.session_state.events[match_id] = events
+
+                updated_events.append({
+                    "team": team,
+                    "scorer": pure_player_name(scorer),
+                    "assist": pure_player_name(assist)
+                })
+
+    st.session_state.events[match_id] = updated_events
 
 def render_match_input(m):
     mid = m["id"]
@@ -522,10 +609,7 @@ def render_match_input(m):
     c1, c2, c3, c4 = st.columns([1.2, .8, .8, 1.2])
     with c1:
         if st.button("🎲 Simular partida", key=f"sim_one_{mid}"):
-            hg_sim, ag_sim = simulate_score(home, away)
-            st.session_state.results[mid] = {"home_goals": hg_sim, "away_goals": ag_sim, "played": True}
-            make_auto_events(mid, home, away, hg_sim, ag_sim)
-            simulate_cards_for_match(mid, home, away)
+            store_simulated_match(m)
             st.rerun()
     current = st.session_state.results.get(mid, current)
     with c2:
@@ -648,8 +732,12 @@ def simulate_round(phase):
             winner = random.choices([m["home"], m["away"]], weights=[p_home, p_away], k=1)[0]
         else:
             winner = m["home"] if hg > ag else m["away"]
-        st.session_state.results[m["id"]] = {"home_goals": hg, "away_goals": ag, "played": True, "winner": winner}
-        make_auto_events(m["id"], m["home"], m["away"], hg, ag)
+        st.session_state.results[m["id"]] = {"home_goals": int(hg), "away_goals": int(ag), "played": True, "winner": winner}
+        st.session_state[f"{m['id']}_ko_hg"] = int(hg)
+        st.session_state[f"{m['id']}_ko_ag"] = int(ag)
+        st.session_state[f"{m['id']}_ko_played"] = True
+        st.session_state[f"{m['id']}_winner"] = winner
+        make_auto_events(m["id"], m["home"], m["away"], int(hg), int(ag))
         simulate_cards_for_match(m["id"], m["home"], m["away"])
 
 # =========================
