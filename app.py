@@ -332,6 +332,147 @@ def inject_css():
         border-radius: 8px !important;
         color: var(--cream) !important;
     }
+
+    /* ===== PATCH FINAL: alinhamento, fonte menor e contraste máximo ===== */
+    .stApp, .stApp * {
+        color: #F5F5DC;
+    }
+
+    p, span, label, div, small {
+        color: #F5F5DC;
+    }
+
+    .muted, .details-copy, .stCaptionContainer, [data-testid="stCaptionContainer"] {
+        color: #E9DFC1 !important;
+    }
+
+    .match-card-vintage {
+        padding: 6px 8px !important;
+    }
+
+    .match-scoreline {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr) !important;
+        justify-content: center !important;
+        align-items: center !important;
+        gap: 6px !important;
+        width: 100% !important;
+    }
+
+    .match-team-left,
+    .match-team-right {
+        display: flex !important;
+        align-items: center !important;
+        min-width: 0 !important;
+        font-size: .70rem !important;
+        line-height: 1.05 !important;
+        color: #FFFFFF !important;
+    }
+
+    .match-team-left {
+        justify-content: flex-start !important;
+    }
+
+    .match-team-right {
+        justify-content: flex-end !important;
+        text-align: right !important;
+    }
+
+    .match-team-left span:last-child,
+    .match-team-right span:last-child,
+    .ko-team-name span:last-child {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        color: #FFFFFF !important;
+    }
+
+    .shirt-badge {
+        width: 21px !important;
+        height: 21px !important;
+        min-width: 21px !important;
+        font-size: .82rem !important;
+        margin-right: 4px !important;
+        border-radius: 5px 5px 9px 9px !important;
+    }
+
+    .scoreboard-number {
+        min-width: 22px !important;
+        padding: 2px 3px !important;
+        font-size: .82rem !important;
+        color: #FFF6D6 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .score-separator {
+        font-size: .74rem !important;
+        color: #E9DFC1 !important;
+    }
+
+    .ko-card-compact {
+        padding: 6px 7px !important;
+    }
+
+    .ko-team-row {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        gap: 5px !important;
+        min-width: 0 !important;
+        font-size: .66rem !important;
+        line-height: 1.05 !important;
+        color: #FFFFFF !important;
+    }
+
+    .ko-team-name {
+        display: flex !important;
+        align-items: center !important;
+        min-width: 0 !important;
+        max-width: 112px !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        color: #FFFFFF !important;
+    }
+
+    .ko-score-pill {
+        min-width: 22px !important;
+        padding: 1px 4px !important;
+        font-size: .74rem !important;
+        color: #FFF6D6 !important;
+        display: inline-flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+    }
+
+    .ko-card-header,
+    .fifa-bracket-title,
+    .group-mini-title,
+    .thirds-title {
+        color: #F7D774 !important;
+    }
+
+    div[data-testid="stDataFrame"] * {
+        color: #FFFFFF !important;
+    }
+
+    input, textarea, div[data-baseweb="select"] * {
+        color: #FFFFFF !important;
+    }
+
+    @media (max-width: 1200px) {
+        .match-team-left,
+        .match-team-right,
+        .ko-team-row {
+            font-size: .62rem !important;
+        }
+        .ko-team-name {
+            max-width: 92px !important;
+        }
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -495,42 +636,74 @@ def top_deciders(team: str, n: int = 2) -> str:
 
 def team_power(team: str, ovr_lookup: dict) -> float:
     """
-    Força geral do time em escala aproximada de 0 a 1.
-    OVR pesa mais, ranking continua importante e craques/top 5 entram como fator decisivo.
+    PATCH REALISMO OVR:
+    A força agora é dominada pelo OVR dos titulares/elenco e pelo peso dos craques.
+    Ranking ainda entra, mas não deixa seleção fraca virar favorita só por acaso.
     """
     rank = FIFA_RANKING.get(team, 48)
-    # PATCH: se o usuário montou titulares, a força usa o OVR dos 11 em campo.
-    ovr = float(lineup_ovr(team)) if "lineups" in st.session_state and team in st.session_state.lineups else float(ovr_lookup.get(team, 70))
+
+    try:
+        ovr = float(lineup_ovr(team)) if "lineups" in st.session_state and team in st.session_state.lineups else float(ovr_lookup.get(team, 70))
+    except Exception:
+        ovr = float(ovr_lookup.get(team, 70))
+
     star = float(team_star_factor(team))
 
-    rank_score = (49 - rank) / 48
-    ovr_score = np.clip((ovr - 50) / 50, 0, 1)
-    star_score = np.clip((star - 50) / 50, 0, 1)
+    # Normalizações mais agressivas: 70 vira mediano; 80+ vira elite.
+    ovr_score = float(np.clip((ovr - 62) / 26, 0, 1))
+    star_score = float(np.clip((star - 64) / 26, 0, 1))
+    rank_score = float(np.clip((49 - rank) / 48, 0, 1))
 
-    return float(0.68 * ovr_score + 0.22 * rank_score + 0.10 * star_score)
-
+    # OVR manda no jogo. Craques decidem. Ranking desempata.
+    return float(0.76 * ovr_score + 0.17 * star_score + 0.07 * rank_score)
 
 def match_probabilities(home: str, away: str, knockout: bool = False) -> dict:
     """
-    Calcula probabilidades da partida.
-    knockout=False: vitória/empate/derrota no tempo normal.
-    knockout=True: probabilidade de avanço, sem empate.
+    PATCH REALISMO OVR:
+    Probabilidades calculadas por rating contínuo:
+    - OVR médio/titulares com peso alto;
+    - top 5 craques com peso relevante;
+    - ranking FIFA como ajuste fino.
+    Diferenças grandes de OVR geram favoritismo esmagador e reduzem zebras irreais.
     """
-    ph = team_power(home, OVR_LOOKUP)
-    pa = team_power(away, OVR_LOOKUP)
+    try:
+        home_ovr = float(lineup_ovr(home)) if "lineups" in st.session_state and home in st.session_state.lineups else float(OVR_LOOKUP.get(home, 70))
+        away_ovr = float(lineup_ovr(away)) if "lineups" in st.session_state and away in st.session_state.lineups else float(OVR_LOOKUP.get(away, 70))
+    except Exception:
+        home_ovr = float(OVR_LOOKUP.get(home, 70))
+        away_ovr = float(OVR_LOOKUP.get(away, 70))
 
-    home_raw = np.exp(5.25 * ph)
-    away_raw = np.exp(5.25 * pa)
+    home_star = float(team_star_factor(home))
+    away_star = float(team_star_factor(away))
 
+    home_rank = FIFA_RANKING.get(home, 48)
+    away_rank = FIFA_RANKING.get(away, 48)
+
+    # Rating em escala "pontos de força".
+    # Cada ponto de OVR pesa muito mais que ranking.
+    home_rating = 1.00 * home_ovr + 0.22 * home_star + 0.055 * (49 - home_rank)
+    away_rating = 1.00 * away_ovr + 0.22 * away_star + 0.055 * (49 - away_rank)
+
+    diff = float(home_rating - away_rating)
+
+    # Logistic mais inclinada: OVR maior vira favoritismo real.
     if knockout:
-        total = home_raw + away_raw
-        return {"home": float(home_raw / total), "away": float(away_raw / total)}
+        p_home = 1 / (1 + np.exp(-diff / 3.15))
+        p_home = float(np.clip(p_home, 0.025, 0.975))
+        return {"home": p_home, "away": float(1 - p_home)}
 
-    diff = abs(ph - pa)
-    draw_raw = 0.85 + 1.20 * np.exp(-6.0 * diff)
-    total = home_raw + away_raw + draw_raw
-    return {"home": float(home_raw / total), "draw": float(draw_raw / total), "away": float(away_raw / total)}
+    # Empate só fica alto quando o jogo é realmente parelho.
+    draw = 0.285 * np.exp(-abs(diff) / 7.2) + 0.045
+    draw = float(np.clip(draw, 0.045, 0.30))
 
+    p_home_no_draw = 1 / (1 + np.exp(-diff / 3.35))
+    p_home_no_draw = float(np.clip(p_home_no_draw, 0.02, 0.98))
+
+    remaining = 1 - draw
+    p_home = remaining * p_home_no_draw
+    p_away = remaining * (1 - p_home_no_draw)
+
+    return {"home": float(p_home), "draw": float(draw), "away": float(p_away)}
 
 def decimal_odd(prob: float, margin: float = 0.94) -> float:
     """Converte probabilidade em odd decimal."""
@@ -539,16 +712,17 @@ def decimal_odd(prob: float, margin: float = 0.94) -> float:
 
 
 def odds_text(home: str, away: str) -> str:
-    """Texto compacto de ODDs para os cards."""
+    """PATCH BANDEIRAS: odds com bandeiras e nomes, sem siglas truncadas."""
     p90 = match_probabilities(home, away, knockout=False)
     pko = match_probabilities(home, away, knockout=True)
     return (
-        f"90min: {home[:3]} {decimal_odd(p90['home'])} · "
-        f"Emp {decimal_odd(p90['draw'])} · "
-        f"{away[:3]} {decimal_odd(p90['away'])}<br>"
-        f"Avança: {home[:3]} {decimal_odd(pko['home'])} · "
-        f"{away[:3]} {decimal_odd(pko['away'])}"
+        f"90min: {FLAGS.get(home,'')} {home} {decimal_odd(p90['home'])} · "
+        f"Empate {decimal_odd(p90['draw'])} · "
+        f"{FLAGS.get(away,'')} {away} {decimal_odd(p90['away'])}<br>"
+        f"Avança: {FLAGS.get(home,'')} {home} {decimal_odd(pko['home'])} · "
+        f"{FLAGS.get(away,'')} {away} {decimal_odd(pko['away'])}"
     )
+
 
 # =========================
 # SESSION STATE
@@ -946,35 +1120,57 @@ def highlight_thirds(row):
 
 def simulate_score(home: str, away: str) -> tuple[int, int]:
     """
-    Simula placar com peso forte em OVR, ranking e craques.
-    Usa Poisson para gols e um pequeno fator de craque decidindo jogo.
+    PATCH REALISMO OVR:
+    Primeiro sorteia o resultado respeitando probabilidades fortes por OVR.
+    Depois gera um placar coerente com esse resultado.
+    Isso reduz zebras absurdas sem eliminar o drama do futebol.
     """
-    ph = team_power(home, OVR_LOOKUP)
-    pa = team_power(away, OVR_LOOKUP)
-    diff = ph - pa
+    probs = match_probabilities(home, away, knockout=False)
+    outcome = random.choices(
+        ["home", "draw", "away"],
+        weights=[probs["home"], probs["draw"], probs["away"]],
+        k=1
+    )[0]
 
-    home_star = team_star_factor(home)
-    away_star = team_star_factor(away)
-    star_diff = (home_star - away_star) / 50
+    try:
+        home_ovr = float(lineup_ovr(home)) if "lineups" in st.session_state and home in st.session_state.lineups else float(OVR_LOOKUP.get(home, 70))
+        away_ovr = float(lineup_ovr(away)) if "lineups" in st.session_state and away in st.session_state.lineups else float(OVR_LOOKUP.get(away, 70))
+    except Exception:
+        home_ovr = float(OVR_LOOKUP.get(home, 70))
+        away_ovr = float(OVR_LOOKUP.get(away, 70))
 
-    home_lambda = 0.78 + 1.55 * ph + 1.35 * diff + 0.35 * star_diff
-    away_lambda = 0.78 + 1.55 * pa - 1.35 * diff - 0.35 * star_diff
+    home_star = float(team_star_factor(home))
+    away_star = float(team_star_factor(away))
+    diff = (home_ovr - away_ovr) + 0.22 * (home_star - away_star)
 
-    home_lambda = float(np.clip(home_lambda, 0.18, 3.95))
-    away_lambda = float(np.clip(away_lambda, 0.18, 3.95))
+    # Volume ofensivo com limites para não virar placar de handebol.
+    home_xg = 1.05 + max(diff, -10) * 0.075 + (home_ovr - 70) * 0.035
+    away_xg = 1.05 + max(-diff, -10) * 0.075 + (away_ovr - 70) * 0.035
 
-    hg = int(np.random.poisson(home_lambda))
-    ag = int(np.random.poisson(away_lambda))
+    home_xg = float(np.clip(home_xg, 0.22, 3.35))
+    away_xg = float(np.clip(away_xg, 0.22, 3.35))
 
-    star_gap = abs(home_star - away_star)
-    if random.random() < min(0.20, 0.045 + star_gap / 140):
-        if home_star > away_star and random.random() < 0.58:
-            hg += 1
-        elif away_star > home_star and random.random() < 0.58:
-            ag += 1
+    if outcome == "draw":
+        # Empates mais comuns: 0x0, 1x1, 2x2; 3x3 é raro.
+        g = int(np.random.choice([0, 1, 2, 3], p=[0.20, 0.52, 0.23, 0.05]))
+        return g, g
 
-    return min(int(hg), 7), min(int(ag), 7)
+    if outcome == "home":
+        ag = int(np.random.poisson(max(0.22, away_xg * 0.72)))
+        margin_base = 1 + int(np.random.poisson(max(0.15, (home_xg - away_xg) * 0.45 + 0.25)))
+        # Favorito muito superior pode abrir margem.
+        if diff > 7 and random.random() < min(0.55, diff / 22):
+            margin_base += 1
+        hg = ag + max(1, margin_base)
+        return min(int(hg), 7), min(int(ag), 6)
 
+    # away vence
+    hg = int(np.random.poisson(max(0.22, home_xg * 0.72)))
+    margin_base = 1 + int(np.random.poisson(max(0.15, (away_xg - home_xg) * 0.45 + 0.25)))
+    if diff < -7 and random.random() < min(0.55, abs(diff) / 22):
+        margin_base += 1
+    ag = hg + max(1, margin_base)
+    return min(int(hg), 6), min(int(ag), 7)
 
 def store_simulated_match(m):
     """
