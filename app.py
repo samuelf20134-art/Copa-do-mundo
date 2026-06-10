@@ -2200,7 +2200,7 @@ with tab_groups:
             st.rerun()
     with c3:
         st.markdown(
-            "<div class='clean-card'><span class='muted'>Marque o placar no estilo súmula: simples por fora, completo nos detalhes.</span></div>",
+            "<div class='clean-card'><span class='muted'>Marque o placar, dá pra acessar a súmula de cada jogo na engrenagem.</span></div>",
             unsafe_allow_html=True
         )
 
