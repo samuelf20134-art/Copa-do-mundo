@@ -9,6 +9,12 @@ import gzip
 import base64
 from itertools import combinations
 from collections import defaultdict
+from io import BytesIO
+
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except Exception:
+    Image = ImageDraw = ImageFont = None
 
 st.set_page_config(
     page_title="Dashboard Copa 2026",
@@ -21,39 +27,39 @@ st.set_page_config(
 # CSS / DARK DASHBOARD
 # =========================
 def inject_css():
-    """PATCH VINTAGE: identidade retrô, placar clássico e tela menos poluída."""
+    """PATCH FIFA CLEAN: tema claro oficial, vermelho FIFA, contraste alto e chaveamento limpo."""
     st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@500;700&family=Merriweather:wght@400;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
 
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
 
     :root {
-        --paper: #d8c79a;
-        --paper-soft: #efe0b7;
-        --ink: #17150f;
-        --pitch: #172418;
-        --pitch-2: #24351f;
-        --moss: #556b2f;
-        --gold: #c9a227;
-        --cream: #f3ead0;
-        --rust: #8b3f2f;
-        --line: rgba(239, 224, 183, .18);
+        --fifa-bg: #f4f4f4;
+        --fifa-card: #ffffff;
+        --fifa-soft: #f7f7f7;
+        --fifa-line: #dedede;
+        --fifa-text: #151515;
+        --fifa-muted: #666666;
+        --fifa-red: #e10600;
+        --fifa-red-dark: #b90400;
+        --fifa-blue: #0b1f3a;
     }
 
     html, body, [class*="css"] {
-        font-family: 'Merriweather', Georgia, serif !important;
+        font-family: 'Inter', Arial, Helvetica, sans-serif !important;
+        color: var(--fifa-text) !important;
     }
 
     .stApp {
         background:
-            radial-gradient(circle at 9% 6%, rgba(216,199,154,.11), transparent 28%),
-            radial-gradient(circle at 85% 12%, rgba(85,107,47,.22), transparent 26%),
-            repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0px, rgba(255,255,255,.018) 1px, transparent 1px, transparent 5px),
-            linear-gradient(135deg, #0c100b 0%, #151c12 46%, #090b08 100%) !important;
-        color: var(--cream) !important;
+            linear-gradient(90deg, rgba(225,6,0,.035) 0 1px, transparent 1px 100%),
+            linear-gradient(180deg, rgba(0,0,0,.025) 0 1px, transparent 1px 100%),
+            var(--fifa-bg) !important;
+        background-size: 44px 44px, 44px 44px, auto !important;
+        color: var(--fifa-text) !important;
     }
 
     .block-container {
@@ -65,356 +71,231 @@ def inject_css():
     }
 
     h1, h2, h3 {
-        font-family: 'Archivo Black', Impact, sans-serif !important;
-        color: var(--paper-soft) !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        color: var(--fifa-text) !important;
+        font-weight: 900 !important;
         letter-spacing: -.045em !important;
-        text-transform: uppercase;
-    }
-
-    .muted { color: rgba(243,234,208,.66) !important; }
-    .gold { color: var(--gold) !important; font-weight: 900; }
-    .neon { color: var(--paper-soft) !important; font-weight: 900; }
-
-    .card, .clean-card, .round-card, .match-card, .ko-card-compact, .group-shell {
-        box-shadow: none !important;
-    }
-
-    .card, .clean-card {
-        background: rgba(23, 21, 15, .52) !important;
-        border: 1px solid rgba(216,199,154,.16) !important;
-        border-radius: 10px !important;
-        padding: 14px 16px !important;
-    }
-
-    .stButton > button {
-        background: var(--paper) !important;
-        color: var(--ink) !important;
-        border: 1px solid rgba(23,21,15,.7) !important;
-        border-radius: 6px !important;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-        letter-spacing: -.02em !important;
-        box-shadow: 3px 3px 0 rgba(0,0,0,.36) !important;
-        min-height: 2.15rem !important;
-    }
-
-    .stButton > button:hover {
-        background: var(--gold) !important;
-        color: #090b08 !important;
-        transform: translate(-1px, -1px);
-    }
-
-    div[data-testid="stMetric"] {
-        background: rgba(239,224,183,.07) !important;
-        border: 1px solid rgba(216,199,154,.16) !important;
-        border-radius: 8px !important;
-        padding: 12px 14px !important;
-        box-shadow: none !important;
-    }
-    div[data-testid="stMetricValue"] {
-        color: var(--paper-soft) !important;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-weight: 700 !important;
-    }
-    div[data-testid="stMetricLabel"] { color: rgba(243,234,208,.62) !important; }
-
-    input, textarea {
-        background: rgba(239,224,183,.08) !important;
-        border: 1px solid rgba(216,199,154,.18) !important;
-        color: var(--cream) !important;
-        border-radius: 6px !important;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-weight: 700 !important;
-    }
-
-    div[data-baseweb="select"] > div {
-        background-color: rgba(239,224,183,.08) !important;
-        color: var(--cream) !important;
-        border-color: rgba(216,199,154,.18) !important;
-        border-radius: 6px !important;
-    }
-
-    div[data-testid="stDataFrame"] {
-        border: 1px solid rgba(216,199,154,.14) !important;
-        border-radius: 8px !important;
-        overflow: hidden !important;
-        background: rgba(23,21,15,.35) !important;
-    }
-
-    [data-baseweb="tab-list"] { gap: 12px; border-bottom: 1px solid rgba(216,199,154,.13); }
-    [data-baseweb="tab"] {
-        background: transparent !important;
-        border: 0 !important;
-        color: rgba(243,234,208,.62) !important;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-weight: 700 !important;
-        text-transform: uppercase;
-        border-radius: 0 !important;
-    }
-    [aria-selected="true"] {
-        color: var(--paper-soft) !important;
-        border-bottom: 3px solid var(--gold) !important;
-    }
-
-    .shirt-badge {
-        display: inline-flex;
-        width: 26px;
-        height: 26px;
-        align-items: center;
-        justify-content: center;
-        border-radius: 7px 7px 12px 12px;
-        background: linear-gradient(145deg, rgba(216,199,154,.24), rgba(85,107,47,.14));
-        border: 1px solid rgba(216,199,154,.28);
-        margin-right: 6px;
-        font-size: 1rem;
-        box-shadow: inset 0 -6px 0 rgba(0,0,0,.19);
-    }
-
-    .group-shell {
-        background: rgba(23, 21, 15, .44) !important;
-        border: 1px solid rgba(216,199,154,.13) !important;
-        border-radius: 9px !important;
-        padding: 10px !important;
-        margin-bottom: 12px !important;
-    }
-    .group-mini-title {
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: .78rem;
-        font-weight: 700;
-        color: var(--gold);
-        letter-spacing: .03em;
-        text-transform: uppercase;
-        margin-bottom: 4px;
-    }
-
-    .match-card-vintage {
-        background: rgba(23, 21, 15, .48);
-        border: 1px solid rgba(216,199,154,.13);
-        border-radius: 8px;
-        padding: 8px 10px;
-        margin: 7px 0 10px 0;
-    }
-    .match-scoreline {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
-        align-items: center;
-        gap: 8px;
-        font-family: 'IBM Plex Mono', monospace;
-        font-weight: 700;
-    }
-    .match-team-left, .match-team-right {
-        color: var(--cream);
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        font-size: .83rem;
-    }
-    .match-team-right { text-align: right; }
-    .scoreboard-number {
-        display: inline-flex;
-        justify-content: center;
-        align-items: center;
-        min-width: 30px;
-        padding: 3px 5px;
-        background: #080807;
-        color: var(--paper-soft);
-        border: 1px solid rgba(216,199,154,.2);
-        border-radius: 4px;
-        font-family: 'IBM Plex Mono', monospace;
-        font-weight: 700;
-        font-size: 1rem;
-    }
-    .score-separator { color: rgba(243,234,208,.45); margin: 0 2px; }
-
-    .fifa-bracket-title {
-        color: var(--gold) !important;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: .68rem !important;
-        font-weight: 700 !important;
-        text-transform: uppercase !important;
-        letter-spacing: .07em !important;
-        text-align: left !important;
-        margin: 4px 0 8px 2px !important;
-    }
-    .ko-card-compact {
-        background: rgba(23,21,15,.50) !important;
-        border: 1px solid rgba(216,199,154,.14) !important;
-        border-left: 0 !important;
-        border-radius: 8px !important;
-        padding: 8px !important;
-        margin-bottom: 9px !important;
-    }
-    .ko-card-header {
-        color: rgba(243,234,208,.48) !important;
-        font-family: 'IBM Plex Mono', monospace !important;
-        font-size: .61rem !important;
-        text-transform: uppercase !important;
-        letter-spacing: .08em !important;
-        margin-bottom: 6px !important;
-    }
-    .ko-team-row {
-        display: flex !important;
-        justify-content: space-between !important;
-        align-items: center !important;
-        gap: 6px !important;
-        color: var(--cream) !important;
-        font-size: .74rem !important;
-        border-bottom: 1px solid rgba(216,199,154,.08) !important;
-        padding: 4px 0 !important;
-    }
-    .ko-team-row:last-child { border-bottom: none !important; }
-    .ko-team-name {
-        display: inline-flex;
-        align-items: center;
-        gap: 3px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        max-width: 132px;
-    }
-    .ko-score-pill {
-        min-width: 28px;
-        text-align: center;
-        background: #070706;
-        color: var(--paper-soft);
-        border: 1px solid rgba(216,199,154,.20);
-        border-radius: 4px;
-        font-family: 'IBM Plex Mono', monospace;
-        font-weight: 700;
-        padding: 2px 6px;
-    }
-    .ko-winner-row { color: #f0d98e !important; font-weight: 900 !important; }
-    .ko-placeholder {
-        background: rgba(23,21,15,.28) !important;
-        border: 1px dashed rgba(216,199,154,.17) !important;
-        border-radius: 8px !important;
-        padding: 12px 8px !important;
-        margin-bottom: 10px !important;
-        color: rgba(243,234,208,.42) !important;
-        font-family: 'IBM Plex Mono', monospace;
-        font-size: .68rem !important;
-        text-align: center;
-    }
-    .details-copy {
-        color: rgba(243,234,208,.72);
-        font-size: .78rem;
-        line-height: 1.45;
-    }
-    .thirds-trigger-card {
-        background: rgba(23, 21, 15, .42);
-        border: 1px solid rgba(216,199,154,.14);
-        border-radius: 9px;
-        padding: 10px 12px;
-        margin: 8px 0 14px 0;
-    }
-    .thirds-title {
-        font-family: 'IBM Plex Mono', monospace;
-        color: var(--gold);
-        font-size: .86rem;
-        font-weight: 700;
-        text-transform: uppercase;
-    }
-    .tactic-pitch {
-        background:
-            linear-gradient(90deg, rgba(216,199,154,.06) 1px, transparent 1px),
-            linear-gradient(180deg, rgba(216,199,154,.06) 1px, transparent 1px),
-            linear-gradient(135deg, rgba(45,70,38,.65), rgba(23,36,24,.44));
-        background-size: 42px 42px, 42px 42px, auto;
-        border: 1px solid rgba(216,199,154,.20);
-        border-radius: 14px;
-        padding: 18px;
-        margin: 10px 0;
-    }
-    .player-chip, .reserve-box {
-        background: rgba(23,21,15,.45) !important;
-        border: 1px solid rgba(216,199,154,.12) !important;
-        border-radius: 8px !important;
-        color: var(--cream) !important;
-    }
-
-    /* ===== PATCH FINAL: alinhamento, fonte menor e contraste máximo ===== */
-    .stApp, .stApp * {
-        color: #F5F5DC;
-    }
-
-    p, span, label, div, small {
-        color: #F5F5DC;
+        text-transform: none !important;
     }
 
     .muted, .details-copy, .stCaptionContainer, [data-testid="stCaptionContainer"] {
-        color: #E9DFC1 !important;
+        color: var(--fifa-muted) !important;
+    }
+    .gold, .neon { color: var(--fifa-red) !important; font-weight: 900; }
+
+    .card, .clean-card, .round-card, .match-card, .group-shell, .thirds-trigger-card {
+        background: var(--fifa-card) !important;
+        border: 1px solid var(--fifa-line) !important;
+        border-radius: 14px !important;
+        box-shadow: 0 10px 26px rgba(0,0,0,.055) !important;
+        color: var(--fifa-text) !important;
     }
 
-    .match-card-vintage {
-        padding: 6px 8px !important;
+    .stButton > button {
+        background: var(--fifa-red) !important;
+        color: #ffffff !important;
+        border: 1px solid var(--fifa-red) !important;
+        border-radius: 999px !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-weight: 800 !important;
+        text-transform: none !important;
+        letter-spacing: -.02em !important;
+        box-shadow: none !important;
+        min-height: 2.25rem !important;
+    }
+    .stButton > button:hover {
+        background: var(--fifa-red-dark) !important;
+        color: #ffffff !important;
+        border-color: var(--fifa-red-dark) !important;
+        transform: translateY(-1px);
     }
 
-    .match-scoreline {
-        display: grid !important;
-        grid-template-columns: minmax(0, 1fr) 58px minmax(0, 1fr) !important;
-        justify-content: center !important;
-        align-items: center !important;
-        gap: 6px !important;
-        width: 100% !important;
+    /* Botões secundários, popovers e expanders */
+    div[data-testid="stPopover"] > button,
+    button[data-testid="stBaseButton-secondary"],
+    button[kind="secondary"],
+    .streamlit-expanderHeader {
+        background: #ffffff !important;
+        color: var(--fifa-text) !important;
+        border: 1px solid var(--fifa-line) !important;
+        border-radius: 999px !important;
+        font-weight: 800 !important;
+        box-shadow: none !important;
+    }
+    div[data-testid="stPopover"] > button:hover,
+    button[data-testid="stBaseButton-secondary"]:hover {
+        border-color: var(--fifa-red) !important;
+        color: var(--fifa-red) !important;
+        background: #fff7f7 !important;
     }
 
-    .match-team-left,
-    .match-team-right {
-        display: flex !important;
-        align-items: center !important;
-        min-width: 0 !important;
-        font-size: .70rem !important;
-        line-height: 1.05 !important;
-        color: #FFFFFF !important;
+    div[data-testid="stMetric"] {
+        background: #ffffff !important;
+        border: 1px solid var(--fifa-line) !important;
+        border-radius: 14px !important;
+        padding: 13px 14px !important;
+        box-shadow: 0 8px 20px rgba(0,0,0,.05) !important;
+        color: var(--fifa-text) !important;
+    }
+    div[data-testid="stMetricValue"] {
+        color: var(--fifa-red) !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-weight: 900 !important;
+    }
+    div[data-testid="stMetricLabel"] { color: var(--fifa-muted) !important; }
+
+    input, textarea {
+        background: #ffffff !important;
+        border: 1px solid #cfcfcf !important;
+        color: var(--fifa-text) !important;
+        border-radius: 8px !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-weight: 700 !important;
+    }
+    div[data-baseweb="select"] > div {
+        background-color: #ffffff !important;
+        color: var(--fifa-text) !important;
+        border-color: #cfcfcf !important;
+        border-radius: 8px !important;
     }
 
-    .match-team-left {
-        justify-content: flex-start !important;
-    }
-
-    .match-team-right {
-        justify-content: flex-end !important;
-        text-align: right !important;
-    }
-
-    .match-team-left span:last-child,
-    .match-team-right span:last-child,
-    .ko-team-name span:last-child {
-        white-space: nowrap !important;
+    div[data-testid="stDataFrame"] {
+        border: 1px solid var(--fifa-line) !important;
+        border-radius: 12px !important;
         overflow: hidden !important;
-        text-overflow: ellipsis !important;
-        color: #FFFFFF !important;
+        background: #ffffff !important;
+        color: var(--fifa-text) !important;
+    }
+    div[data-testid="stDataFrame"] * {
+        color: var(--fifa-text) !important;
+    }
+
+    [data-baseweb="tab-list"] { gap: 10px; border-bottom: 1px solid var(--fifa-line); }
+    [data-baseweb="tab"] {
+        background: transparent !important;
+        border: 0 !important;
+        color: var(--fifa-muted) !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-weight: 800 !important;
+        text-transform: none !important;
+        border-radius: 0 !important;
+    }
+    [aria-selected="true"] {
+        color: var(--fifa-red) !important;
+        border-bottom: 3px solid var(--fifa-red) !important;
     }
 
     .shirt-badge {
-        width: 21px !important;
-        height: 21px !important;
-        min-width: 21px !important;
-        font-size: .82rem !important;
-        margin-right: 4px !important;
-        border-radius: 5px 5px 9px 9px !important;
+        display: inline-flex;
+        width: 25px;
+        height: 25px;
+        min-width: 25px;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        background: #ffffff;
+        border: 1px solid #d7d7d7;
+        margin-right: 6px;
+        font-size: 1rem;
+        box-shadow: 0 2px 6px rgba(0,0,0,.10);
     }
 
-    .scoreboard-number {
-        min-width: 22px !important;
-        padding: 2px 3px !important;
-        font-size: .82rem !important;
-        color: #FFF6D6 !important;
-        display: inline-flex !important;
-        align-items: center !important;
+    .group-shell {
+        padding: 10px !important;
+        margin-bottom: 12px !important;
+    }
+    .group-mini-title, .fifa-bracket-title, .thirds-title {
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-size: .76rem !important;
+        font-weight: 900 !important;
+        color: var(--fifa-red) !important;
+        letter-spacing: .02em !important;
+        text-transform: uppercase !important;
+        margin-bottom: 6px !important;
+    }
+
+    .match-card-vintage {
+        background: #ffffff;
+        border: 1px solid var(--fifa-line);
+        border-radius: 12px;
+        padding: 7px 9px;
+        margin: 7px 0 10px 0;
+        box-shadow: 0 4px 13px rgba(0,0,0,.04);
+    }
+    .match-scoreline {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) 62px minmax(0, 1fr) !important;
         justify-content: center !important;
+        align-items: center !important;
+        gap: 7px !important;
+        width: 100% !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-weight: 800 !important;
     }
-
-    .score-separator {
-        font-size: .74rem !important;
-        color: #E9DFC1 !important;
+    .match-team-left, .match-team-right {
+        display: flex !important;
+        align-items: center !important;
+        min-width: 0 !important;
+        font-size: .72rem !important;
+        line-height: 1.05 !important;
+        color: var(--fifa-text) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
     }
+    .match-team-left { justify-content: flex-start !important; }
+    .match-team-right { justify-content: flex-end !important; text-align: right !important; }
+    .match-team-left span:last-child, .match-team-right span:last-child, .ko-team-name span:last-child {
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        color: var(--fifa-text) !important;
+    }
+    .scoreboard-number, .ko-score-pill {
+        display: inline-flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+        min-width: 24px !important;
+        padding: 2px 5px !important;
+        background: #f2f2f2 !important;
+        color: var(--fifa-text) !important;
+        border: 1px solid #d8d8d8 !important;
+        border-radius: 5px !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-weight: 900 !important;
+        font-size: .82rem !important;
+    }
+    .score-separator { color: #9a9a9a !important; font-size: .75rem !important; margin: 0 2px; }
 
+    /* Chaveamento estilo oficial: claro, simétrico e com conectores finos */
     .ko-card-compact {
-        padding: 6px 7px !important;
+        position: relative;
+        background: #ffffff !important;
+        border: 1px solid #dcdcdc !important;
+        border-left: 3px solid var(--fifa-red) !important;
+        border-radius: 10px !important;
+        padding: 7px !important;
+        margin-bottom: 11px !important;
+        box-shadow: 0 6px 16px rgba(0,0,0,.045) !important;
     }
-
+    .ko-card-compact::after {
+        content: "";
+        position: absolute;
+        right: -10px;
+        top: 50%;
+        width: 10px;
+        height: 1px;
+        background: #c9c9c9;
+    }
+    .ko-card-header {
+        color: #8b8b8b !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-size: .60rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: .06em !important;
+        margin-bottom: 6px !important;
+        font-weight: 800 !important;
+    }
     .ko-team-row {
         display: flex !important;
         justify-content: space-between !important;
@@ -423,56 +304,74 @@ def inject_css():
         min-width: 0 !important;
         font-size: .66rem !important;
         line-height: 1.05 !important;
-        color: #FFFFFF !important;
+        color: var(--fifa-text) !important;
+        border-bottom: 1px solid #eeeeee !important;
+        padding: 4px 0 !important;
     }
-
+    .ko-team-row:last-child { border-bottom: none !important; }
     .ko-team-name {
         display: flex !important;
         align-items: center !important;
         min-width: 0 !important;
-        max-width: 112px !important;
+        max-width: 116px !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
         white-space: nowrap !important;
-        color: #FFFFFF !important;
+        color: var(--fifa-text) !important;
+    }
+    .ko-winner-row { color: var(--fifa-red) !important; font-weight: 900 !important; }
+    .ko-placeholder {
+        background: #ffffff !important;
+        border: 1px dashed #d3d3d3 !important;
+        border-radius: 10px !important;
+        padding: 12px 8px !important;
+        margin-bottom: 10px !important;
+        color: #999999 !important;
+        font-family: 'Inter', Arial, sans-serif !important;
+        font-size: .68rem !important;
+        text-align: center;
     }
 
-    .ko-score-pill {
-        min-width: 22px !important;
-        padding: 1px 4px !important;
-        font-size: .74rem !important;
-        color: #FFF6D6 !important;
-        display: inline-flex !important;
-        justify-content: center !important;
-        align-items: center !important;
+    .details-copy { color: #3a3a3a !important; font-size: .78rem; line-height: 1.45; }
+    .thirds-trigger-card {
+        background: #ffffff !important;
+        border: 1px solid var(--fifa-line) !important;
+        border-radius: 14px !important;
+        padding: 10px 12px;
+        margin: 8px 0 14px 0;
     }
+    .tactic-pitch {
+        background:
+            linear-gradient(90deg, rgba(255,255,255,.18) 1px, transparent 1px),
+            linear-gradient(180deg, rgba(255,255,255,.18) 1px, transparent 1px),
+            linear-gradient(135deg, #1c8f4a, #0f6a38) !important;
+        background-size: 42px 42px, 42px 42px, auto !important;
+        border: 1px solid #0f6a38 !important;
+        border-radius: 14px !important;
+        padding: 18px;
+        margin: 10px 0;
+    }
+    .player-chip, .reserve-box {
+        background: #ffffff !important;
+        border: 1px solid #dcdcdc !important;
+        border-radius: 10px !important;
+        color: var(--fifa-text) !important;
+    }
+    .player-chip strong { color: var(--fifa-red) !important; }
 
-    .ko-card-header,
-    .fifa-bracket-title,
-    .group-mini-title,
-    .thirds-title {
-        color: #F7D774 !important;
+    /* Correção global de contraste no tema claro */
+    .stApp, .stApp *, p, span, label, div, small {
+        color: inherit;
     }
-
-    div[data-testid="stDataFrame"] * {
-        color: #FFFFFF !important;
+    .stMarkdown, .stMarkdown p, .stMarkdown span, label {
+        color: var(--fifa-text) !important;
     }
-
-    input, textarea, div[data-baseweb="select"] * {
-        color: #FFFFFF !important;
-    }
+    .stAlert, .stAlert * { color: var(--fifa-text) !important; }
 
     @media (max-width: 1200px) {
-        .match-team-left,
-        .match-team-right,
-        .ko-team-row {
-            font-size: .62rem !important;
-        }
-        .ko-team-name {
-            max-width: 92px !important;
-        }
+        .match-team-left, .match-team-right, .ko-team-row { font-size: .61rem !important; }
+        .ko-team-name { max-width: 92px !important; }
     }
-
     </style>
     """, unsafe_allow_html=True)
 
@@ -577,6 +476,9 @@ def load_players() -> pd.DataFrame:
     df = pd.DataFrame(json.loads(raw))
     df = df[df["team"].isin(ALL_TEAMS)].copy()
     df["ovr"] = df.apply(lambda r: generate_player_ovr(r["team"], r["pos"], r["player_name"], r["club"]), axis=1)
+    # PATCH FIFA CLEAN: buff hardcoded do Neymar para virar craque real da simulação.
+    neymar_mask = (df["team"].eq("Brasil") & df["player_name"].str.contains("neymar", case=False, na=False))
+    df.loc[neymar_mask, "ovr"] = 96
     df["display"] = df["player_name"] + " · " + df["pos"] + " · OVR " + df["ovr"].astype(str)
     return df
 
@@ -586,6 +488,9 @@ def stable_rand_int(seed: str, low: int, high: int) -> int:
     return low + (value % (high - low + 1))
 
 def generate_player_ovr(team: str, pos: str, name: str, club: str) -> int:
+    # PATCH FIFA CLEAN: Neymar recebe OVR fixo de craque geracional.
+    if team == "Brasil" and "neymar" in str(name).lower():
+        return 96
     rank = FIFA_RANKING.get(team, 48)
     # base mais alta para ranking melhor
     base = 88 - (rank - 1) * 0.43
@@ -1371,7 +1276,7 @@ def render_match_input(m):
         if hasattr(st, "popover"):
             detail_ctx = st.popover("⚙️", use_container_width=True)
         else:
-            detail_ctx = st.expander("⚙️ Detalhes", expanded=False)
+            detail_ctx = st.expander("ℹ️ Súmula", expanded=False)
         with detail_ctx:
             st.markdown("**Ficha da partida**")
             st.markdown(
@@ -1587,9 +1492,9 @@ def render_knockout_match_compact(m):
         ensure_events_for_score(mid, home, away, int(hg), int(ag))
 
     if hasattr(st, "popover"):
-        detail_ctx = st.popover("⚙️ Detalhes", use_container_width=True)
+        detail_ctx = st.popover("ℹ️", use_container_width=True)
     else:
-        detail_ctx = st.expander("⚙️ Detalhes", expanded=False)
+        detail_ctx = st.expander("ℹ️ Súmula", expanded=False)
 
     with detail_ctx:
         d1, d2 = st.columns(2)
@@ -1653,6 +1558,117 @@ def split_matches_for_side(phase: str, side: str) -> list:
         return matches
     return matches[:half] if side == "left" else matches[half:]
 
+
+
+def _safe_font(size=24, bold=False):
+    """PATCH EXPORT PNG: tenta carregar fonte limpa para desenho do chaveamento."""
+    if ImageFont is None:
+        return None
+    candidates = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf",
+    ]
+    for c in candidates:
+        try:
+            return ImageFont.truetype(c, size)
+        except Exception:
+            pass
+    return ImageFont.load_default()
+
+
+def _match_export_label(m):
+    mid = m["id"]
+    res = st.session_state.results.get(mid, {})
+    hg = res.get("home_goals", "") if res.get("played") else ""
+    ag = res.get("away_goals", "") if res.get("played") else ""
+    return str(hg), str(ag)
+
+
+def build_bracket_png() -> bytes:
+    """PATCH EXPORT PNG: desenha o chaveamento completo em PNG, estável no Streamlit."""
+    if Image is None or ImageDraw is None:
+        return b""
+
+    W, H = 1900, 1120
+    img = Image.new("RGB", (W, H), "#F4F4F4")
+    draw = ImageDraw.Draw(img)
+    title_font = _safe_font(42, True)
+    sub_font = _safe_font(22, False)
+    round_font = _safe_font(18, True)
+    team_font = _safe_font(16, True)
+    score_font = _safe_font(18, True)
+    small_font = _safe_font(13, False)
+
+    red = "#E10600"
+    text = "#151515"
+    muted = "#666666"
+    line = "#C9C9C9"
+    card = "#FFFFFF"
+
+    draw.rectangle([0, 0, W, H], fill="#F4F4F4")
+    draw.rectangle([0, 0, W, 92], fill="#FFFFFF")
+    draw.rectangle([0, 88, W, 92], fill=red)
+    draw.text((58, 24), "Simulador Copa 2026", fill=text, font=title_font)
+    champ = st.session_state.champion or "Campeão a definir"
+    draw.text((58, 72), f"Chaveamento completo · {champ}", fill=muted, font=sub_font)
+
+    phases = ["16-avos", "Oitavas", "Quartas", "Semifinal", "Final"]
+    xs = {"16-avos": 70, "Oitavas": 430, "Quartas": 790, "Semifinal": 1150, "Final": 1510}
+    y_start = 130
+    card_w, card_h = 265, 54
+    max_rows = {"16-avos": 16, "Oitavas": 8, "Quartas": 4, "Semifinal": 2, "Final": 1}
+
+    positions = {}
+    for ph in phases:
+        matches = st.session_state.knockout_rounds.get(ph, [])
+        nmax = max_rows[ph]
+        gap = (H - y_start - 80 - card_h) / max(1, nmax - 1)
+        x = xs[ph]
+        draw.text((x, y_start - 32), ph.upper(), fill=red, font=round_font)
+        for i, m in enumerate(matches):
+            # Mantém espaçamento da fase cheia para ficar simétrico.
+            y = y_start + i * gap * (nmax / max(1, len(matches))) if len(matches) and ph != "16-avos" else y_start + i * gap
+            if ph == "Final":
+                y = 520
+            positions[m["id"]] = (x, y)
+            draw.rounded_rectangle([x, y, x + card_w, y + card_h], radius=12, fill=card, outline="#DCDCDC", width=1)
+            draw.rectangle([x, y, x + 5, y + card_h], fill=red)
+            hg, ag = _match_export_label(m)
+            home, away = m["home"], m["away"]
+            res = st.session_state.results.get(m["id"], {})
+            winner = res.get("winner", "") if res.get("played") else ""
+            hfill = red if winner == home else text
+            afill = red if winner == away else text
+            draw.text((x + 14, y + 8), home[:22], fill=hfill, font=team_font)
+            draw.text((x + card_w - 38, y + 8), str(hg), fill=text, font=score_font)
+            draw.text((x + 14, y + 30), away[:22], fill=afill, font=team_font)
+            draw.text((x + card_w - 38, y + 30), str(ag), fill=text, font=score_font)
+
+    # Linhas horizontais entre fases por ordem de avanço.
+    for ph in phases[:-1]:
+        cur = st.session_state.knockout_rounds.get(ph, [])
+        nxt = st.session_state.knockout_rounds.get(NEXT_ROUND.get(ph, ""), [])
+        for j, nm in enumerate(nxt):
+            if 2*j < len(cur) and cur[2*j]["id"] in positions and nm["id"] in positions:
+                x1, y1 = positions[cur[2*j]["id"]]
+                x2, y2 = positions[nm["id"]]
+                y1c = y1 + card_h / 2
+                y2c = y2 + card_h / 2
+                midx = x1 + card_w + 24
+                draw.line([x1 + card_w, y1c, midx, y1c], fill=line, width=2)
+                if 2*j+1 < len(cur) and cur[2*j+1]["id"] in positions:
+                    xb, yb = positions[cur[2*j+1]["id"]]
+                    ybc = yb + card_h / 2
+                    draw.line([xb + card_w, ybc, midx, ybc], fill=line, width=2)
+                    draw.line([midx, y1c, midx, ybc], fill=line, width=2)
+                    draw.line([midx, y2c, x2, y2c], fill=line, width=2)
+                else:
+                    draw.line([midx, y1c, x2, y2c], fill=line, width=2)
+
+    draw.text((58, H - 45), "Gerado no Simulador da Copa 2026", fill=muted, font=small_font)
+    out = BytesIO()
+    img.save(out, format="PNG")
+    return out.getvalue()
 
 def render_fifa_bracket():
     """Novo chaveamento em uma tela: lado esquerdo -> centro/final <- lado direito."""
@@ -1922,7 +1938,7 @@ with tab_groups:
 # ABA: MATA-MATA
 # =========================
 with tab_knockout:
-    st.subheader("Mata-mata")
+    st.subheader("Chave eliminatória")
 
     if not all_played_group_matches():
         st.warning("Feche os 72 jogos da fase de grupos para liberar a chave.")
@@ -1955,7 +1971,7 @@ with tab_knockout:
 
         with top_actions[3]:
             st.markdown(
-                "<span class='muted'>A chave mostra só o essencial. O resto fica na súmula de cada jogo.</span>",
+                "<span class='muted'>Chave limpa no estilo oficial. A súmula fica no ícone de informação de cada jogo.</span>",
                 unsafe_allow_html=True
             )
 
@@ -1965,6 +1981,20 @@ with tab_knockout:
             st.rerun()
 
         render_fifa_bracket()
+
+        # PATCH EXPORT PNG: download do chaveamento em imagem oficial.
+        png_bytes = build_bracket_png()
+        if png_bytes:
+            st.download_button(
+                "⬇️ Baixar chaveamento em PNG",
+                data=png_bytes,
+                file_name="chaveamento_copa_2026.png",
+                mime="image/png",
+                use_container_width=True,
+            )
+        else:
+            st.caption("Exportação em PNG indisponível: Pillow não está instalado no ambiente.")
+
         st.markdown("---")
         st.markdown("### Atalhos por fase")
 
