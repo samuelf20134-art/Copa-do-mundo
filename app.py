@@ -1723,28 +1723,151 @@ STAGE_VALUE = {
     "Campeão": 7,
 }
 
+def team_group_lookup() -> dict:
+    """PATCH 16-AVOS OFICIAL: mapeia cada seleção ao seu grupo."""
+    return {team: group for group, teams in GROUPS.items() for team in teams}
+
+
+def build_official_round_of_32_matches(tables: dict, best_thirds: list) -> list:
+    """
+    PATCH 16-AVOS OFICIAL:
+    Monta os confrontos dos 16-avos seguindo o cruzamento solicitado.
+    Mantém confrontos fixos de líderes/vices e distribui os 8 melhores terceiros
+    nos slots permitidos, evitando confronto contra seleção do mesmo grupo.
+    """
+    group_of = team_group_lookup()
+
+    def pos(group: str, index: int) -> str:
+        return str(tables[group].iloc[index]["Time"])
+
+    # Slots dinâmicos: líder + grupos de terceiros permitidos.
+    third_slots = [
+        {"leader_group": "E", "allowed": ["A", "B", "C", "D", "F"]},
+        {"leader_group": "I", "allowed": ["C", "D", "F", "G", "H"]},
+        {"leader_group": "A", "allowed": ["C", "E", "F", "H", "I"]},
+        {"leader_group": "B", "allowed": ["E", "F", "G", "I", "J"]},
+        {"leader_group": "K", "allowed": ["D", "E", "I", "J", "L"]},
+        {"leader_group": "D", "allowed": ["B", "F", "G", "H", "I"]},
+        {"leader_group": "G", "allowed": ["A", "B", "C", "E", "H"]},
+        {"leader_group": "L", "allowed": ["G", "H", "I", "J", "K"]},
+    ]
+
+    thirds = list(best_thirds)
+
+    # Backtracking pequeno e seguro: 8 slots x 8 terceiros.
+    # Prioriza a ordem do ranking de melhores terceiros já calculada.
+    def backtrack(slot_idx: int, remaining: list, assignment: list):
+        if slot_idx == len(third_slots):
+            return assignment
+
+        slot = third_slots[slot_idx]
+        leader_group = slot["leader_group"]
+        allowed = set(slot["allowed"])
+
+        candidates = []
+        for team in remaining:
+            tg = group_of.get(team)
+            if tg in allowed and tg != leader_group:
+                candidates.append(team)
+
+        # Tenta primeiro os terceiros mais bem ranqueados; isso preserva o mérito esportivo.
+        for team in candidates:
+            new_remaining = [t for t in remaining if t != team]
+            result = backtrack(slot_idx + 1, new_remaining, assignment + [team])
+            if result is not None:
+                return result
+        return None
+
+    assigned_thirds = backtrack(0, thirds, [])
+
+    # Fallback defensivo: se uma combinação extremamente rara não encaixar,
+    # ainda evita mesmo grupo sempre que possível, sem quebrar o app.
+    if assigned_thirds is None:
+        assigned_thirds = []
+        remaining = thirds[:]
+        for slot in third_slots:
+            leader_group = slot["leader_group"]
+            allowed = set(slot["allowed"])
+            pick = None
+            for team in remaining:
+                tg = group_of.get(team)
+                if tg in allowed and tg != leader_group:
+                    pick = team
+                    break
+            if pick is None and remaining:
+                for team in remaining:
+                    if group_of.get(team) != leader_group:
+                        pick = team
+                        break
+            if pick is None and remaining:
+                pick = remaining[0]
+            if pick is not None:
+                assigned_thirds.append(pick)
+                remaining.remove(pick)
+
+    dynamic_matches = [
+        (pos("E", 0), assigned_thirds[0]),
+        (pos("I", 0), assigned_thirds[1]),
+        (pos("A", 0), assigned_thirds[2]),
+        (pos("B", 0), assigned_thirds[3]),
+        (pos("K", 0), assigned_thirds[4]),
+        (pos("D", 0), assigned_thirds[5]),
+        (pos("G", 0), assigned_thirds[6]),
+        (pos("L", 0), assigned_thirds[7]),
+    ]
+
+    fixed_matches = [
+        (pos("A", 1), pos("B", 1)),
+        (pos("C", 0), pos("F", 1)),
+        (pos("F", 0), pos("C", 1)),
+        (pos("E", 1), pos("I", 1)),
+        (pos("H", 0), pos("J", 1)),
+        (pos("K", 1), pos("L", 1)),
+        (pos("J", 0), pos("H", 1)),
+        (pos("D", 1), pos("G", 1)),
+    ]
+
+    # Ordem do chaveamento: alterna blocos fixos e dinâmicos para manter a árvore preenchida.
+    # A lógica de avanço posterior permanece exatamente a mesma do app.
+    ordered_pairs = [
+        fixed_matches[0],
+        dynamic_matches[0],
+        fixed_matches[1],
+        dynamic_matches[1],
+        fixed_matches[2],
+        dynamic_matches[2],
+        fixed_matches[3],
+        dynamic_matches[3],
+        fixed_matches[4],
+        dynamic_matches[4],
+        fixed_matches[5],
+        dynamic_matches[5],
+        fixed_matches[6],
+        dynamic_matches[6],
+        fixed_matches[7],
+        dynamic_matches[7],
+    ]
+
+    return [
+        {"id": f"KO_32_{i}", "phase": "16-avos", "home": home, "away": away}
+        for i, (home, away) in enumerate(ordered_pairs)
+    ]
+
+
 def generate_round_of_32():
-    """PATCH BUGFIX: monta os 16-avos com 32 classificados, limpando chave antiga sem apagar grupos."""
+    """
+    PATCH 16-AVOS OFICIAL:
+    Substitui o chaveamento genérico por cruzamentos oficiais baseados na posição
+    final dos grupos + distribuição dos 8 melhores terceiros nos slots permitidos.
+    """
     direct, best_thirds, thirds_df = qualified_teams()
     teams = list(dict.fromkeys(direct + best_thirds))
 
-    tables, overall = compute_group_tables()
-    group_perf = []
-    for g, df in tables.items():
-        for _, r in df.iterrows():
-            if r["Time"] in teams:
-                group_perf.append(r)
-
-    seed_df = pd.DataFrame(group_perf).sort_values(
-        ["Pts", "SG", "GP", "FP", "Ranking"],
-        ascending=[False, False, False, True, True]
-    ).reset_index(drop=True)
-    seeds = seed_df["Time"].tolist()
-
-    if len(seeds) < 32:
+    if len(teams) < 32:
         st.error("Ainda não há 32 classificados. Confira se todos os grupos foram fechados.")
         return
-    seeds = seeds[:32]
+
+    tables, overall = compute_group_tables()
 
     # Limpa apenas dados antigos do mata-mata, preservando fase de grupos e estatísticas já registradas.
     old_ko_ids = []
@@ -1755,11 +1878,7 @@ def generate_round_of_32():
         st.session_state.events.pop(mid, None)
         st.session_state.discipline.pop(mid, None)
 
-    pair_indices = [(0,31),(15,16),(7,24),(8,23),(3,28),(12,19),(4,27),(11,20),
-                    (1,30),(14,17),(6,25),(9,22),(2,29),(13,18),(5,26),(10,21)]
-    matches = []
-    for i, (a, b) in enumerate(pair_indices):
-        matches.append({"id": f"KO_32_{i}", "phase": "16-avos", "home": seeds[a], "away": seeds[b]})
+    matches = build_official_round_of_32_matches(tables, best_thirds)
 
     st.session_state.knockout_rounds = {"16-avos": matches}
     st.session_state.champion = None
@@ -1769,7 +1888,6 @@ def generate_round_of_32():
             st.session_state.team_stage[t] = "Fase de Grupos"
     for t in teams:
         st.session_state.team_stage[t] = "16-avos"
-
 
 def get_match_winner(mid, home, away, hg, ag):
     if hg > ag:
