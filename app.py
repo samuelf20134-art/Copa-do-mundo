@@ -215,6 +215,142 @@ def inject_css():
         border-radius: 12px; padding: 12px 8px; margin-bottom: 10px;
         color: #64748b; font-size: .72rem; text-align: center;
     }
+
+
+    /* ===== PATCH VISUAL CLEAN + PRANCHETA TÁTICA ===== */
+    .block-container { padding-top: 1.25rem; }
+    h1, h2, h3 { letter-spacing: .1px; }
+
+    .card, .match-card, .round-card, .ko-card-compact {
+        box-shadow: none !important;
+    }
+
+    .match-card {
+        background: rgba(15, 23, 42, .58) !important;
+        border-left: 2px solid rgba(57,255,136,.70) !important;
+        border-radius: 14px !important;
+        padding: 12px 14px !important;
+        margin: 8px 0 12px 0 !important;
+    }
+
+    div[data-testid="stDataFrame"] {
+        border: 1px solid rgba(148,163,184,.12) !important;
+        border-radius: 12px !important;
+        overflow: hidden !important;
+        background: rgba(15,23,42,.36) !important;
+    }
+
+    .clean-card {
+        background: rgba(15,23,42,.46);
+        border: 1px solid rgba(148,163,184,.14);
+        border-radius: 16px;
+        padding: 14px;
+        margin: 8px 0;
+    }
+
+    .mini-stat-card {
+        background: rgba(15,23,42,.42);
+        border: 1px solid rgba(57,255,136,.14);
+        border-radius: 16px;
+        padding: 12px;
+        margin-bottom: 10px;
+    }
+
+    .mini-stat-title {
+        color: #94a3b8;
+        font-size: .76rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+    }
+
+    .mini-stat-value {
+        color: #f8fafc;
+        font-size: 1.18rem;
+        font-weight: 900;
+        margin-top: 4px;
+    }
+
+    .mini-stat-sub {
+        color: #94a3b8;
+        font-size: .78rem;
+        margin-top: 3px;
+    }
+
+    .ko-card-compact {
+        background: rgba(15,23,42,.54) !important;
+        border: 1px solid rgba(148,163,184,.16) !important;
+        border-left: 2px solid rgba(57,255,136,.65) !important;
+        border-radius: 13px !important;
+        padding: 8px !important;
+        margin-bottom: 9px !important;
+    }
+
+    .ko-card-header {
+        color: #94a3b8 !important;
+        font-size: .66rem !important;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        margin-bottom: 5px !important;
+    }
+
+    .ko-team-row {
+        color: #f8fafc !important;
+        font-size: .76rem !important;
+        border-bottom: 1px solid rgba(148,163,184,.08) !important;
+    }
+
+    .ko-odds {
+        color: #39ff88 !important;
+        font-size: .66rem !important;
+        margin-top: 5px !important;
+    }
+
+    .ko-decider { display: none !important; }
+
+    .tactic-pitch {
+        background:
+            linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px),
+            linear-gradient(180deg, rgba(255,255,255,.05) 1px, transparent 1px),
+            radial-gradient(circle at center, rgba(57,255,136,.10), transparent 38%),
+            linear-gradient(135deg, rgba(20,83,45,.52), rgba(6,78,59,.22));
+        background-size: 42px 42px, 42px 42px, auto, auto;
+        border: 1px solid rgba(57,255,136,.26);
+        border-radius: 22px;
+        padding: 18px;
+        margin: 10px 0;
+    }
+
+    .tactic-line-title {
+        color: #39ff88;
+        font-size: .74rem;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        margin: 8px 0 4px 0;
+        text-align: center;
+    }
+
+    .player-chip {
+        background: rgba(15,23,42,.68);
+        border: 1px solid rgba(248,250,252,.12);
+        border-radius: 14px;
+        padding: 8px;
+        color: #f8fafc;
+        text-align: center;
+        font-size: .75rem;
+        min-height: 54px;
+    }
+
+    .player-chip strong { color: #f8d66d; }
+
+    .reserve-box {
+        background: rgba(15,23,42,.44);
+        border: 1px solid rgba(148,163,184,.14);
+        border-radius: 16px;
+        padding: 12px;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -310,9 +446,12 @@ def team_ovr_table(players: pd.DataFrame) -> pd.DataFrame:
 
 def team_star_factor(team: str) -> float:
     """
-    Mede o peso dos craques do time usando a média dos 5 maiores OVRs do elenco.
+    Mede o peso dos craques do time.
+    PATCH: se houver escalação manual, usa os 5 melhores TITULARES.
     """
     try:
+        if "lineups" in st.session_state and team in st.session_state.lineups:
+            return lineup_star_factor(team)
         df = players_df[players_df["team"] == team].sort_values("ovr", ascending=False)
         if df.empty:
             return OVR_LOOKUP.get(team, 70)
@@ -324,6 +463,8 @@ def team_star_factor(team: str) -> float:
 def top_deciders(team: str, n: int = 2) -> str:
     """Retorna os principais jogadores capazes de decidir."""
     try:
+        if "lineups" in st.session_state and team in st.session_state.lineups:
+            return top_deciders_from_lineup(team, n)
         df = players_df[players_df["team"] == team].sort_values("ovr", ascending=False).head(n)
         if df.empty:
             return "sem destaque definido"
@@ -338,7 +479,8 @@ def team_power(team: str, ovr_lookup: dict) -> float:
     OVR pesa mais, ranking continua importante e craques/top 5 entram como fator decisivo.
     """
     rank = FIFA_RANKING.get(team, 48)
-    ovr = float(ovr_lookup.get(team, 70))
+    # PATCH: se o usuário montou titulares, a força usa o OVR dos 11 em campo.
+    ovr = float(lineup_ovr(team)) if "lineups" in st.session_state and team in st.session_state.lineups else float(ovr_lookup.get(team, 70))
     star = float(team_star_factor(team))
 
     rank_score = (49 - rank) / 48
@@ -426,11 +568,246 @@ def init_state():
         st.session_state.team_stage = {t: "Fase de Grupos" for t in ALL_TEAMS}
     if "champion" not in st.session_state:
         st.session_state.champion = None
+    # PATCH: estado da gestão tática sem remover lógica existente
+    if "lineups" not in st.session_state:
+        st.session_state.lineups = {}
+    if "formations" not in st.session_state:
+        st.session_state.formations = {}
+    if "tactic_team" not in st.session_state:
+        st.session_state.tactic_team = ALL_TEAMS[0]
 
 init_state()
 players_df = load_players()
 ovr_df = team_ovr_table(players_df)
 OVR_LOOKUP = dict(zip(ovr_df["team"], ovr_df["OVR Médio"]))
+
+
+# =========================
+# PATCH: GESTÃO TÁTICA / TITULARES E RESERVAS
+# =========================
+FORMATION_LINES = {
+    "4-3-3": [("Atacantes", 3, ["FW"]), ("Meias", 3, ["MF"]), ("Defensores", 4, ["DF"]), ("Goleiro", 1, ["GK"])],
+    "4-4-2": [("Atacantes", 2, ["FW"]), ("Meias", 4, ["MF"]), ("Defensores", 4, ["DF"]), ("Goleiro", 1, ["GK"])],
+    "3-5-2": [("Atacantes", 2, ["FW"]), ("Meias", 5, ["MF"]), ("Defensores", 3, ["DF"]), ("Goleiro", 1, ["GK"])],
+}
+
+
+def squad_display_list(team: str) -> list:
+    """Lista dos 26 convocados em formato usado nos selectboxes."""
+    df = players_df[players_df["team"] == team].sort_values(["pos", "ovr"], ascending=[True, False])
+    return df["display"].tolist()
+
+
+def player_row_from_display(team: str, display: str):
+    """Recupera a linha do jogador a partir do texto do selectbox."""
+    if not display:
+        return None
+    name = display.split(" · ")[0]
+    df = players_df[(players_df["team"] == team) & (players_df["player_name"] == name)]
+    if df.empty:
+        return None
+    return df.iloc[0]
+
+
+def default_lineup(team: str, formation: str = "4-3-3") -> list:
+    """Gera uma escalação inicial equilibrada por posição e OVR."""
+    df = players_df[players_df["team"] == team].copy().sort_values("ovr", ascending=False)
+    chosen = []
+    used = set()
+
+    # A formação é renderizada de ataque para defesa, mas aqui escolhemos por necessidade posicional.
+    needs = []
+    for _, amount, positions in FORMATION_LINES.get(formation, FORMATION_LINES["4-3-3"]):
+        for _ in range(amount):
+            needs.append(positions[0])
+
+    # Garante goleiro e linhas por posição.
+    for pos in ["GK", "DF", "MF", "FW"]:
+        amount = needs.count(pos)
+        candidates = df[df["pos"] == pos].sort_values("ovr", ascending=False)
+        for _, row in candidates.head(amount).iterrows():
+            disp = row["display"]
+            if disp not in used:
+                chosen.append(disp)
+                used.add(disp)
+
+    # Completa com melhores disponíveis caso alguma posição não tenha quantidade suficiente.
+    for _, row in df.iterrows():
+        if len(chosen) >= 11:
+            break
+        disp = row["display"]
+        if disp not in used:
+            chosen.append(disp)
+            used.add(disp)
+
+    return chosen[:11]
+
+
+def ensure_lineup(team: str):
+    """Inicializa escalação da seleção se ainda não existir."""
+    formation = st.session_state.formations.get(team, "4-3-3")
+    if team not in st.session_state.lineups or len(st.session_state.lineups.get(team, [])) != 11:
+        st.session_state.lineups[team] = default_lineup(team, formation)
+    return st.session_state.lineups[team]
+
+
+def lineup_ovr(team: str) -> float:
+    """OVR médio dos titulares. Se não houver escalação, usa o OVR médio do elenco."""
+    try:
+        lineup = ensure_lineup(team)
+        vals = []
+        for disp in lineup:
+            row = player_row_from_display(team, disp)
+            if row is not None:
+                vals.append(float(row["ovr"]))
+        if vals:
+            return float(np.mean(vals))
+    except Exception:
+        pass
+    return float(OVR_LOOKUP.get(team, 70))
+
+
+def lineup_star_factor(team: str) -> float:
+    """Média dos 5 melhores titulares, usada como fator de craque decisivo."""
+    try:
+        lineup = ensure_lineup(team)
+        vals = []
+        for disp in lineup:
+            row = player_row_from_display(team, disp)
+            if row is not None:
+                vals.append(float(row["ovr"]))
+        if vals:
+            return float(np.mean(sorted(vals, reverse=True)[:5]))
+    except Exception:
+        pass
+    return float(OVR_LOOKUP.get(team, 70))
+
+
+def top_deciders_from_lineup(team: str, n: int = 2) -> str:
+    """Mostra craques titulares, sem apagar o cálculo original dos elencos."""
+    try:
+        lineup = ensure_lineup(team)
+        rows = []
+        for disp in lineup:
+            row = player_row_from_display(team, disp)
+            if row is not None:
+                rows.append(row)
+        rows = sorted(rows, key=lambda r: float(r["ovr"]), reverse=True)[:n]
+        if rows:
+            return ", ".join([f"{r['player_name']} ({int(r['ovr'])})" for r in rows])
+    except Exception:
+        pass
+    try:
+        df = players_df[players_df["team"] == team].sort_values("ovr", ascending=False).head(n)
+        if not df.empty:
+            return ", ".join([f"{r['player_name']} ({int(r['ovr'])})" for _, r in df.iterrows()])
+    except Exception:
+        pass
+    return "sem destaque definido"
+
+
+def available_options_for_slot(team: str, current_value: str, selected_values: list) -> list:
+    """Evita duplicar jogadores nos 11 slots, mantendo o valor atual disponível."""
+    options = squad_display_list(team)
+    selected = set([v for v in selected_values if v != current_value])
+    filtered = [o for o in options if o not in selected]
+    if current_value and current_value not in filtered:
+        filtered.insert(0, current_value)
+    return filtered
+
+
+def render_player_chip(team: str, display: str):
+    row = player_row_from_display(team, display)
+    if row is None:
+        st.markdown("<div class='player-chip'>A definir</div>", unsafe_allow_html=True)
+        return
+    st.markdown(
+        f"""
+        <div class="player-chip">
+            <strong>{row['player_name']}</strong><br>
+            <span class="muted">{row['pos']} · OVR {int(row['ovr'])}</span>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def render_tactical_board(team: str):
+    """Campo tático visual com titulares e reservas usando os 26 convocados."""
+    st.markdown(f"### 🧩 Gestão de Escalação — {FLAGS.get(team,'')} {team}")
+    ctop1, ctop2, ctop3 = st.columns([1.2, 1.2, 2.4])
+    with ctop1:
+        formation = st.selectbox(
+            "Formação",
+            list(FORMATION_LINES.keys()),
+            index=list(FORMATION_LINES.keys()).index(st.session_state.formations.get(team, "4-3-3")),
+            key=f"formation_{team}"
+        )
+    st.session_state.formations[team] = formation
+
+    with ctop2:
+        if st.button("Restaurar melhores 11", key=f"reset_lineup_{team}", use_container_width=True):
+            st.session_state.lineups[team] = default_lineup(team, formation)
+            st.rerun()
+
+    lineup = ensure_lineup(team)
+
+    with ctop3:
+        st.markdown(
+            f"""
+            <div class="clean-card">
+                <span class="mini-stat-title">Força dos titulares</span><br>
+                <span class="mini-stat-value">OVR {lineup_ovr(team):.1f}</span>
+                <div class="mini-stat-sub">Craques: {top_deciders_from_lineup(team, 2)}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    st.markdown("<div class='tactic-pitch'>", unsafe_allow_html=True)
+    slot_index = 0
+    new_lineup = list(lineup)
+
+    for line_title, amount, _positions in FORMATION_LINES[formation]:
+        st.markdown(f"<div class='tactic-line-title'>{line_title}</div>", unsafe_allow_html=True)
+        cols = st.columns(amount)
+        for i in range(amount):
+            with cols[i]:
+                current = new_lineup[slot_index] if slot_index < len(new_lineup) else squad_display_list(team)[0]
+                options = available_options_for_slot(team, current, new_lineup)
+                idx = options.index(current) if current in options else 0
+                selected = st.selectbox(
+                    f"Slot {slot_index + 1}",
+                    options,
+                    index=idx,
+                    key=f"lineup_{team}_{slot_index}",
+                    label_visibility="collapsed"
+                )
+                new_lineup[slot_index] = selected
+                render_player_chip(team, selected)
+                slot_index += 1
+
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    st.session_state.lineups[team] = new_lineup[:11]
+    duplicated = [p for p in set(new_lineup) if new_lineup.count(p) > 1]
+    if duplicated:
+        st.warning("Há jogadores duplicados na escalação. Troque um dos repetidos para preservar o realismo.")
+
+    reserves = [p for p in squad_display_list(team) if p not in st.session_state.lineups[team]]
+    with st.expander(f"Reservas ({len(reserves)})", expanded=False):
+        res_rows = []
+        for disp in reserves:
+            row = player_row_from_display(team, disp)
+            if row is not None:
+                res_rows.append({"Pos": row["pos"], "Jogador": row["player_name"], "Clube": row["club"], "OVR": int(row["ovr"])})
+        if res_rows:
+            st.dataframe(pd.DataFrame(res_rows).sort_values(["OVR"], ascending=False), use_container_width=True, hide_index=True)
+
+
+def set_tactic_team(team: str):
+    st.session_state.tactic_team = team
+    ensure_lineup(team)
 
 # =========================
 # FUNÇÕES DE PARTIDA / TABELA
@@ -730,13 +1107,13 @@ def render_match_input(m):
     st.markdown(f"""
     <div class="match-card">
         <div class="teamline">{FLAGS.get(home,'')} {home} <span class="gold">vs</span> {FLAGS.get(away,'')} {away}</div>
-        <div class="muted">Ranking: {home} #{FIFA_RANKING[home]} · OVR {OVR_LOOKUP.get(home,70):.1f} | {away} #{FIFA_RANKING[away]} · OVR {OVR_LOOKUP.get(away,70):.1f}</div>
+        <div class="muted">Ranking: {home} #{FIFA_RANKING[home]} · OVR titulares {lineup_ovr(home):.1f} | {away} #{FIFA_RANKING[away]} · OVR titulares {lineup_ovr(away):.1f}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    c1, c2, c3, c4 = st.columns([1.2, .8, .8, 1.2])
+    c1, c2, c3, c4, c5 = st.columns([1.05, .72, .72, 1.0, 1.55])
     with c1:
-        if st.button("🎲 Simular partida", key=f"sim_one_{mid}"):
+        if st.button("🎲 Simular", key=f"sim_one_{mid}", use_container_width=True):
             store_simulated_match(m)
             st.rerun()
     current = st.session_state.results.get(mid, current)
@@ -744,7 +1121,18 @@ def render_match_input(m):
         hg = st.number_input(f"Gols {home}", min_value=0, max_value=15, value=int(current["home_goals"]), key=f"{mid}_hg")
     with c3:
         ag = st.number_input(f"Gols {away}", min_value=0, max_value=15, value=int(current["away_goals"]), key=f"{mid}_ag")
-    played = st.checkbox("Jogo confirmado", value=bool(current["played"]), key=f"{mid}_played")
+    with c4:
+        played = st.checkbox("Confirmado", value=bool(current["played"]), key=f"{mid}_played")
+    with c5:
+        t1, t2 = st.columns(2)
+        with t1:
+            if st.button(f"🧩 {home[:9]}", key=f"tactic_{mid}_{home}", use_container_width=True):
+                set_tactic_team(home)
+                st.toast(f"Tática aberta para {home}. Vá na aba 🧩 Tática.")
+        with t2:
+            if st.button(f"🧩 {away[:9]}", key=f"tactic_{mid}_{away}", use_container_width=True):
+                set_tactic_team(away)
+                st.toast(f"Tática aberta para {away}. Vá na aba 🧩 Tática.")
 
     st.session_state.results[mid] = {"home_goals": int(hg), "away_goals": int(ag), "played": bool(played)}
     if played and mid not in st.session_state.discipline:
@@ -866,7 +1254,7 @@ def render_placeholder_card(label: str = "A definir"):
 
 
 def render_knockout_match_compact(m):
-    """Card compacto do mata-mata com times, ODDs, craques, placar manual e simulação individual."""
+    """PATCH UI: card limpo do mata-mata com bandeiras, nomes, odds e placar compacto."""
     mid, phase, home, away = m["id"], m["phase"], m["home"], m["away"]
     current = st.session_state.results.get(mid, {"home_goals": 0, "away_goals": 0, "played": False, "winner": home})
 
@@ -880,27 +1268,33 @@ def render_knockout_match_compact(m):
     played_now = st.session_state.results.get(mid, {}).get("played", False)
     h_cls = "ko-winner-row" if winner_now == home and played_now else ""
     a_cls = "ko-winner-row" if winner_now == away and played_now else ""
+    pko = match_probabilities(home, away, knockout=True)
 
     st.markdown(f"""
     <div class="ko-card-compact">
         <div class="ko-card-header">{phase}</div>
-        <div class="ko-team-row {h_cls}"><span>{FLAGS.get(home,'')} {home}</span><strong>OVR {OVR_LOOKUP.get(home,70):.1f}</strong></div>
-        <div class="ko-team-row {a_cls}"><span>{FLAGS.get(away,'')} {away}</span><strong>OVR {OVR_LOOKUP.get(away,70):.1f}</strong></div>
-        <div class="ko-odds">{odds_text(home, away)}</div>
-        <div class="ko-decider">🔥 {home}: {top_deciders(home, 1)}<br>🔥 {away}: {top_deciders(away, 1)}</div>
+        <div class="ko-team-row {h_cls}"><span>{FLAGS.get(home,'')} {home}</span><strong>{decimal_odd(pko['home'])}</strong></div>
+        <div class="ko-team-row {a_cls}"><span>{FLAGS.get(away,'')} {away}</span><strong>{decimal_odd(pko['away'])}</strong></div>
+        <div class="ko-odds">OVR {lineup_ovr(home):.1f} × {lineup_ovr(away):.1f}</div>
     </div>
     """, unsafe_allow_html=True)
 
-    if st.button("🎲 Simular", key=f"sim_ko_one_{mid}", use_container_width=True):
-        simulate_knockout_match(m)
-        auto_advance_completed_rounds()
-        st.rerun()
+    ctop1, ctop2 = st.columns([1, 1])
+    with ctop1:
+        if st.button("🎲 Simular", key=f"sim_ko_one_{mid}", use_container_width=True):
+            simulate_knockout_match(m)
+            auto_advance_completed_rounds()
+            st.rerun()
+    with ctop2:
+        if st.button("🧩 Tática", key=f"tactic_ko_{mid}", use_container_width=True):
+            set_tactic_team(home)
+            st.toast(f"Tática aberta para {home}. Vá na aba 🧩 Tática.")
 
     c1, c2 = st.columns(2)
     with c1:
-        hg = st.number_input(f"{home[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_hg")
+        hg = st.number_input(f"{home[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_hg", label_visibility="collapsed")
     with c2:
-        ag = st.number_input(f"{away[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_ag")
+        ag = st.number_input(f"{away[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_ag", label_visibility="collapsed")
 
     if int(hg) > int(ag):
         winner = home
@@ -909,11 +1303,10 @@ def render_knockout_match_compact(m):
     else:
         winner = st.selectbox("Vencedor", [home, away], key=f"{mid}_winner")
 
-    played = st.checkbox("Encerrado", key=f"{mid}_ko_played")
+    played = st.checkbox("OK", key=f"{mid}_ko_played")
     st.session_state.results[mid] = {"home_goals": int(hg), "away_goals": int(ag), "played": bool(played), "winner": winner}
     if played:
         render_goal_selectors(mid, home, away, int(hg), int(ag))
-
 
 def render_phase_column(title: str, matches: list, empty_slots: int = 0):
     st.markdown(f"<div class='fifa-bracket-title'>{title}</div>", unsafe_allow_html=True)
@@ -1094,8 +1487,8 @@ m2.metric("Jogadores", f"{len(players_df):,}".replace(",", "."))
 m3.metric("OVR médio geral", f"{players_df['ovr'].mean():.1f}")
 m4.metric("Jogos da fase de grupos", "72")
 
-tab_groups, tab_knockout, tab_stats, tab_simulations, tab_final, tab_squads = st.tabs(
-    ["⚽ Fase de Grupos", "🏆 Mata-Mata", "📊 Estatísticas", "🧠 Simulações", "🌍 Classificação Final", "👥 Elencos/OVR"]
+tab_groups, tab_knockout, tab_stats, tab_simulations, tab_final, tab_tactics, tab_squads = st.tabs(
+    ["⚽ Fase de Grupos", "🏆 Mata-Mata", "📊 Estatísticas", "🧠 Simulações", "🌍 Classificação Final", "🧩 Tática", "👥 Elencos/OVR"]
 )
 
 # =========================
@@ -1226,26 +1619,45 @@ with tab_knockout:
 with tab_stats:
     st.subheader("Estatísticas")
     goals_df, assists_df = event_tables()
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("<div class='card'><h3>Artilharia</h3></div>", unsafe_allow_html=True)
+    cards_df = discipline_table()
+
+    total_goals = int(goals_df["Gols"].sum()) if not goals_df.empty else 0
+    top_scorer = "—" if goals_df.empty else f"{goals_df.iloc[0]['Jogador']} ({goals_df.iloc[0]['Gols']})"
+    top_assist = "—" if assists_df.empty else f"{assists_df.iloc[0]['Jogador']} ({assists_df.iloc[0]['Assistências']})"
+    best_ovr_team = ovr_df.sort_values("OVR Médio", ascending=False).iloc[0]
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Gols registrados", total_goals)
+    k2.metric("Artilheiro", top_scorer)
+    k3.metric("Garçom", top_assist)
+    k4.metric("Maior OVR", f"{FLAGS.get(best_ovr_team['team'],'')} {best_ovr_team['team']} · {best_ovr_team['OVR Médio']:.1f}")
+
+    st.markdown("<div class='clean-card'><span class='muted'>Relatórios detalhados ficam recolhidos para manter o painel limpo. Abra apenas o que quiser analisar.</span></div>", unsafe_allow_html=True)
+
+    with st.expander("🥅 Artilharia detalhada", expanded=not goals_df.empty):
         if goals_df.empty:
             st.info("Nenhum gol registrado ainda.")
         else:
             st.dataframe(goals_df, use_container_width=True, hide_index=True)
-    with c2:
-        st.markdown("<div class='card'><h3>Assistências</h3></div>", unsafe_allow_html=True)
+
+    with st.expander("🎯 Assistências detalhadas", expanded=False):
         if assists_df.empty:
             st.info("Nenhuma assistência registrada ainda.")
         else:
             st.dataframe(assists_df, use_container_width=True, hide_index=True)
 
-    st.markdown("<div class='card'><h3>Cartões e Fair Play</h3><p class='muted'>Fair Play negativo: amarelo=-1, vermelho 2A=-3, vermelho direto=-4, amarelo+VD=-5.</p></div>", unsafe_allow_html=True)
-    cards_df = discipline_table()
-    if cards_df.empty:
-        st.info("Nenhum cartão registrado ainda. Jogos simulados geram cartões automaticamente; jogos manuais começam com fair play 0.")
-    else:
-        st.dataframe(cards_df, use_container_width=True, hide_index=True)
+    with st.expander("🟨 Cartões e Fair Play", expanded=False):
+        st.caption("Fair Play negativo: amarelo=-1, vermelho 2A=-3, vermelho direto=-4, amarelo+VD=-5.")
+        if cards_df.empty:
+            st.info("Nenhum cartão registrado ainda. Jogos simulados geram cartões automaticamente; jogos manuais começam com fair play 0.")
+        else:
+            st.dataframe(cards_df, use_container_width=True, hide_index=True)
+
+    with st.expander("📈 OVR por seleção", expanded=False):
+        ovr_show = ovr_df.copy()
+        ovr_show["Seleção"] = ovr_show["team"].map(lambda t: f"{FLAGS.get(t,'')} {t}")
+        ovr_show = ovr_show.sort_values("OVR Médio", ascending=False)[["Seleção", "OVR Médio"]]
+        st.dataframe(ovr_show, use_container_width=True, hide_index=True)
 
 # =========================
 # ABA: SIMULAÇÕES MASSIVAS
@@ -1317,17 +1729,62 @@ with tab_simulations:
     sim_df = pd.DataFrame([{"Seleção": f"{FLAGS.get(t,'')} {t}", "Títulos simulados": v, "Probabilidade": (v / st.session_state.sim_runs * 100 if st.session_state.sim_runs else 0), "Ranking FIFA": FIFA_RANKING[t], "OVR": OVR_LOOKUP.get(t, 70)} for t, v in st.session_state.sim_wins.items()])
     sim_df = sim_df.sort_values(["Títulos simulados", "Probabilidade", "OVR"], ascending=[False, False, False]).reset_index(drop=True)
     sim_df["Probabilidade"] = sim_df["Probabilidade"].round(2).astype(str) + "%"
-    st.metric("Torneios simulados", st.session_state.sim_runs)
-    st.dataframe(sim_df, use_container_width=True, hide_index=True)
+    top_sim = sim_df.iloc[0]["Seleção"] if not sim_df.empty else "—"
+    sm1, sm2 = st.columns(2)
+    sm1.metric("Torneios simulados", st.session_state.sim_runs)
+    sm2.metric("Mais campeão nas simulações", top_sim)
+    with st.expander("🏆 Ranking completo das simulações", expanded=True):
+        st.dataframe(sim_df, use_container_width=True, hide_index=True)
 
 # =========================
 # ABA: CLASSIFICAÇÃO FINAL
 # =========================
 with tab_final:
     st.subheader("Classificação Final Geral — 1º ao 48º")
-    st.caption("Ordenação: fase alcançada, pontos, vitórias, saldo, gols pró e ranking FIFA.")
     final_df = final_ranking_table()
-    st.dataframe(final_df, use_container_width=True, hide_index=True)
+
+    champion_row = final_df.iloc[0] if not final_df.empty else None
+    total_games_df = tournament_team_stats()
+    played_total = int(total_games_df["J"].sum() / 2) if not total_games_df.empty else 0
+
+    f1, f2, f3 = st.columns(3)
+    f1.metric("Líder atual", champion_row["Seleção"] if champion_row is not None else "—")
+    f2.metric("Jogos disputados", played_total)
+    f3.metric("Critério", "Fase + desempenho")
+
+    st.caption("Ordenação: fase alcançada, pontos, vitórias, saldo, gols pró e ranking FIFA.")
+    with st.expander("🌍 Ver tabela completa 1º ao 48º", expanded=True):
+        st.dataframe(final_df, use_container_width=True, hide_index=True)
+
+# =========================
+# ABA: GESTÃO TÁTICA
+# =========================
+with tab_tactics:
+    st.subheader("Prancheta Tática")
+    st.markdown("<div class='clean-card'><span class='muted'>Monte titulares e reservas. A simulação passa a considerar o OVR médio dos 11 titulares e os craques escalados, sem apagar o banco de dados original.</span></div>", unsafe_allow_html=True)
+    select_col, info_col = st.columns([1.2, 2.8])
+    with select_col:
+        tactic_team = st.selectbox(
+            "Seleção",
+            ALL_TEAMS,
+            index=ALL_TEAMS.index(st.session_state.get("tactic_team", ALL_TEAMS[0])),
+            format_func=lambda t: f"{FLAGS.get(t,'')} {t}",
+            key="tactic_team_selector"
+        )
+        st.session_state.tactic_team = tactic_team
+        ensure_lineup(tactic_team)
+    with info_col:
+        st.markdown(
+            f"""
+            <div class="clean-card">
+                <div class="mini-stat-title">Resumo tático</div>
+                <div class="mini-stat-value">{FLAGS.get(tactic_team,'')} {tactic_team}</div>
+                <div class="mini-stat-sub">Ranking FIFA #{FIFA_RANKING[tactic_team]} · OVR elenco {OVR_LOOKUP.get(tactic_team, 0):.1f} · OVR titulares {lineup_ovr(tactic_team):.1f}</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    render_tactical_board(tactic_team)
 
 # =========================
 # ABA: ELENCOS
