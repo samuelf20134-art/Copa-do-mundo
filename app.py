@@ -180,6 +180,41 @@ def inject_css():
         font-size: .78rem;
         font-weight: 800;
     }
+
+    /* ===== PATCH: Bracket FIFA compacto ===== */
+    .fifa-bracket-title {
+        color: #39ff88;
+        font-weight: 900;
+        font-size: .76rem;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        margin: 8px 0 10px 0;
+        text-align: center;
+    }
+    .ko-card-compact {
+        background: linear-gradient(135deg, #0b1117, #111820);
+        border: 1px solid rgba(57,255,136,.24);
+        border-left: 3px solid #39ff88;
+        border-radius: 12px;
+        padding: 8px 9px;
+        margin-bottom: 10px;
+        box-shadow: 0 8px 18px rgba(0,0,0,.24);
+    }
+    .ko-card-header { color: #f8d66d; font-size: .73rem; font-weight: 900; margin-bottom: 4px; }
+    .ko-team-row {
+        display: flex; justify-content: space-between; align-items: center; gap: 6px;
+        color: #f8fafc; font-size: .78rem; padding: 2px 0;
+        border-bottom: 1px solid rgba(148,163,184,.11);
+    }
+    .ko-team-row:last-child { border-bottom: none; }
+    .ko-winner-row { color: #39ff88 !important; font-weight: 900; }
+    .ko-odds { margin-top: 5px; color: #a7f3d0; font-size: .68rem; line-height: 1.25; }
+    .ko-decider { margin-top: 5px; color: #cbd5e1; font-size: .66rem; line-height: 1.25; }
+    .ko-placeholder {
+        background: rgba(15,23,42,.45); border: 1px dashed rgba(148,163,184,.28);
+        border-radius: 12px; padding: 12px 8px; margin-bottom: 10px;
+        color: #64748b; font-size: .72rem; text-align: center;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -273,11 +308,85 @@ def team_ovr_table(players: pd.DataFrame) -> pd.DataFrame:
             .rename(columns={"ovr":"OVR Médio"})
             .assign(**{"OVR Médio": lambda x: x["OVR Médio"].round(1)}))
 
+def team_star_factor(team: str) -> float:
+    """
+    Mede o peso dos craques do time usando a média dos 5 maiores OVRs do elenco.
+    """
+    try:
+        df = players_df[players_df["team"] == team].sort_values("ovr", ascending=False)
+        if df.empty:
+            return OVR_LOOKUP.get(team, 70)
+        return float(df.head(5)["ovr"].mean())
+    except Exception:
+        return OVR_LOOKUP.get(team, 70)
+
+
+def top_deciders(team: str, n: int = 2) -> str:
+    """Retorna os principais jogadores capazes de decidir."""
+    try:
+        df = players_df[players_df["team"] == team].sort_values("ovr", ascending=False).head(n)
+        if df.empty:
+            return "sem destaque definido"
+        return ", ".join([f"{r['player_name']} ({int(r['ovr'])})" for _, r in df.iterrows()])
+    except Exception:
+        return "sem destaque definido"
+
+
 def team_power(team: str, ovr_lookup: dict) -> float:
+    """
+    Força geral do time em escala aproximada de 0 a 1.
+    OVR pesa mais, ranking continua importante e craques/top 5 entram como fator decisivo.
+    """
     rank = FIFA_RANKING.get(team, 48)
-    rank_score = (49 - rank) / 48          # 0 a 1
-    ovr_score = (ovr_lookup.get(team, 70) - 50) / 50
-    return 0.56 * rank_score + 0.44 * ovr_score
+    ovr = float(ovr_lookup.get(team, 70))
+    star = float(team_star_factor(team))
+
+    rank_score = (49 - rank) / 48
+    ovr_score = np.clip((ovr - 50) / 50, 0, 1)
+    star_score = np.clip((star - 50) / 50, 0, 1)
+
+    return float(0.68 * ovr_score + 0.22 * rank_score + 0.10 * star_score)
+
+
+def match_probabilities(home: str, away: str, knockout: bool = False) -> dict:
+    """
+    Calcula probabilidades da partida.
+    knockout=False: vitória/empate/derrota no tempo normal.
+    knockout=True: probabilidade de avanço, sem empate.
+    """
+    ph = team_power(home, OVR_LOOKUP)
+    pa = team_power(away, OVR_LOOKUP)
+
+    home_raw = np.exp(5.25 * ph)
+    away_raw = np.exp(5.25 * pa)
+
+    if knockout:
+        total = home_raw + away_raw
+        return {"home": float(home_raw / total), "away": float(away_raw / total)}
+
+    diff = abs(ph - pa)
+    draw_raw = 0.85 + 1.20 * np.exp(-6.0 * diff)
+    total = home_raw + away_raw + draw_raw
+    return {"home": float(home_raw / total), "draw": float(draw_raw / total), "away": float(away_raw / total)}
+
+
+def decimal_odd(prob: float, margin: float = 0.94) -> float:
+    """Converte probabilidade em odd decimal."""
+    prob = max(float(prob), 0.01)
+    return round(max(1.01, 1 / (prob * margin)), 2)
+
+
+def odds_text(home: str, away: str) -> str:
+    """Texto compacto de ODDs para os cards."""
+    p90 = match_probabilities(home, away, knockout=False)
+    pko = match_probabilities(home, away, knockout=True)
+    return (
+        f"90min: {home[:3]} {decimal_odd(p90['home'])} · "
+        f"Emp {decimal_odd(p90['draw'])} · "
+        f"{away[:3]} {decimal_odd(p90['away'])}<br>"
+        f"Avança: {home[:3]} {decimal_odd(pko['home'])} · "
+        f"{away[:3]} {decimal_odd(pko['away'])}"
+    )
 
 # =========================
 # SESSION STATE
@@ -439,17 +548,36 @@ def highlight_thirds(row):
     return ["background-color: #7f1d1d; color: #fee2e2; font-weight: 800"] * len(row)
 
 def simulate_score(home: str, away: str) -> tuple[int, int]:
+    """
+    Simula placar com peso forte em OVR, ranking e craques.
+    Usa Poisson para gols e um pequeno fator de craque decidindo jogo.
+    """
     ph = team_power(home, OVR_LOOKUP)
     pa = team_power(away, OVR_LOOKUP)
     diff = ph - pa
 
-    # Poisson com viés moderado. Evita placares absurdos.
-    home_lambda = np.clip(1.20 + diff * 1.35, 0.25, 3.20)
-    away_lambda = np.clip(1.05 - diff * 1.35, 0.25, 3.00)
+    home_star = team_star_factor(home)
+    away_star = team_star_factor(away)
+    star_diff = (home_star - away_star) / 50
+
+    home_lambda = 0.78 + 1.55 * ph + 1.35 * diff + 0.35 * star_diff
+    away_lambda = 0.78 + 1.55 * pa - 1.35 * diff - 0.35 * star_diff
+
+    home_lambda = float(np.clip(home_lambda, 0.18, 3.95))
+    away_lambda = float(np.clip(away_lambda, 0.18, 3.95))
 
     hg = int(np.random.poisson(home_lambda))
     ag = int(np.random.poisson(away_lambda))
-    return min(hg, 6), min(ag, 6)
+
+    star_gap = abs(home_star - away_star)
+    if random.random() < min(0.20, 0.045 + star_gap / 140):
+        if home_star > away_star and random.random() < 0.58:
+            hg += 1
+        elif away_star > home_star and random.random() < 0.58:
+            ag += 1
+
+    return min(int(hg), 7), min(int(ag), 7)
+
 
 def store_simulated_match(m):
     """
@@ -669,6 +797,182 @@ def get_match_winner(mid, home, away, hg, ag):
         return away
     return st.session_state.results.get(mid, {}).get("winner", home)
 
+
+def simulate_knockout_match(m):
+    """Simula uma partida de mata-mata e sincroniza placar, vencedor, widgets, eventos e cartões."""
+    mid, home, away = m["id"], m["home"], m["away"]
+    hg, ag = simulate_score(home, away)
+
+    if hg == ag:
+        probs = match_probabilities(home, away, knockout=True)
+        winner = random.choices([home, away], weights=[probs["home"], probs["away"]], k=1)[0]
+    else:
+        winner = home if hg > ag else away
+
+    st.session_state.results[mid] = {"home_goals": int(hg), "away_goals": int(ag), "played": True, "winner": winner}
+    st.session_state[f"{mid}_ko_hg"] = int(hg)
+    st.session_state[f"{mid}_ko_ag"] = int(ag)
+    st.session_state[f"{mid}_ko_played"] = True
+    st.session_state[f"{mid}_winner"] = winner
+
+    make_auto_events(mid, home, away, int(hg), int(ag))
+    simulate_cards_for_match(mid, home, away)
+    return winner
+
+
+def auto_advance_completed_rounds():
+    """Avança automaticamente fases já encerradas, sem recriar fases existentes."""
+    changed = False
+    for phase in ROUND_ORDER:
+        if phase not in st.session_state.knockout_rounds:
+            continue
+        if not current_round_complete(phase):
+            continue
+        if phase == "Final":
+            if not st.session_state.champion:
+                advance_round("Final")
+                changed = True
+            continue
+        next_phase = NEXT_ROUND[phase]
+        if next_phase not in st.session_state.knockout_rounds:
+            advance_round(phase)
+            changed = True
+    return changed
+
+
+def simulate_remaining_knockout():
+    """Simula todo o mata-mata restante até sair campeão."""
+    if not st.session_state.knockout_rounds:
+        generate_round_of_32()
+    guard = 0
+    while not st.session_state.champion and guard < 10:
+        guard += 1
+        phase_to_play = None
+        for phase in ROUND_ORDER:
+            if phase in st.session_state.knockout_rounds and not current_round_complete(phase):
+                phase_to_play = phase
+                break
+        if phase_to_play is None:
+            changed = auto_advance_completed_rounds()
+            if not changed:
+                break
+            continue
+        simulate_round(phase_to_play)
+        auto_advance_completed_rounds()
+
+
+def render_placeholder_card(label: str = "A definir"):
+    st.markdown(f"""<div class="ko-placeholder">{label}</div>""", unsafe_allow_html=True)
+
+
+def render_knockout_match_compact(m):
+    """Card compacto do mata-mata com times, ODDs, craques, placar manual e simulação individual."""
+    mid, phase, home, away = m["id"], m["phase"], m["home"], m["away"]
+    current = st.session_state.results.get(mid, {"home_goals": 0, "away_goals": 0, "played": False, "winner": home})
+
+    st.session_state.setdefault(f"{mid}_ko_hg", int(current.get("home_goals", 0)))
+    st.session_state.setdefault(f"{mid}_ko_ag", int(current.get("away_goals", 0)))
+    st.session_state.setdefault(f"{mid}_ko_played", bool(current.get("played", False)))
+    if st.session_state.get(f"{mid}_winner") not in [home, away]:
+        st.session_state[f"{mid}_winner"] = current.get("winner", home)
+
+    winner_now = st.session_state.results.get(mid, {}).get("winner", "")
+    played_now = st.session_state.results.get(mid, {}).get("played", False)
+    h_cls = "ko-winner-row" if winner_now == home and played_now else ""
+    a_cls = "ko-winner-row" if winner_now == away and played_now else ""
+
+    st.markdown(f"""
+    <div class="ko-card-compact">
+        <div class="ko-card-header">{phase}</div>
+        <div class="ko-team-row {h_cls}"><span>{FLAGS.get(home,'')} {home}</span><strong>OVR {OVR_LOOKUP.get(home,70):.1f}</strong></div>
+        <div class="ko-team-row {a_cls}"><span>{FLAGS.get(away,'')} {away}</span><strong>OVR {OVR_LOOKUP.get(away,70):.1f}</strong></div>
+        <div class="ko-odds">{odds_text(home, away)}</div>
+        <div class="ko-decider">🔥 {home}: {top_deciders(home, 1)}<br>🔥 {away}: {top_deciders(away, 1)}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if st.button("🎲 Simular", key=f"sim_ko_one_{mid}", use_container_width=True):
+        simulate_knockout_match(m)
+        auto_advance_completed_rounds()
+        st.rerun()
+
+    c1, c2 = st.columns(2)
+    with c1:
+        hg = st.number_input(f"{home[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_hg")
+    with c2:
+        ag = st.number_input(f"{away[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_ag")
+
+    if int(hg) > int(ag):
+        winner = home
+    elif int(ag) > int(hg):
+        winner = away
+    else:
+        winner = st.selectbox("Vencedor", [home, away], key=f"{mid}_winner")
+
+    played = st.checkbox("Encerrado", key=f"{mid}_ko_played")
+    st.session_state.results[mid] = {"home_goals": int(hg), "away_goals": int(ag), "played": bool(played), "winner": winner}
+    if played:
+        render_goal_selectors(mid, home, away, int(hg), int(ag))
+
+
+def render_phase_column(title: str, matches: list, empty_slots: int = 0):
+    st.markdown(f"<div class='fifa-bracket-title'>{title}</div>", unsafe_allow_html=True)
+    if not matches:
+        for _ in range(empty_slots):
+            render_placeholder_card()
+        return
+    for m in matches:
+        render_knockout_match_compact(m)
+
+
+def split_matches_for_side(phase: str, side: str) -> list:
+    matches = st.session_state.knockout_rounds.get(phase, [])
+    if not matches:
+        return []
+    half = len(matches) // 2
+    if phase == "Final":
+        return matches
+    return matches[:half] if side == "left" else matches[half:]
+
+
+def render_fifa_bracket():
+    """Novo chaveamento em uma tela: lado esquerdo -> centro/final <- lado direito."""
+    phases = st.session_state.knockout_rounds
+    left, center, right = st.columns([4.8, 1.7, 4.8], gap="small")
+
+    with left:
+        l1, l2, l3, l4 = st.columns([1.4, 1.2, 1.0, .9], gap="small")
+        with l1:
+            render_phase_column("16-avos", split_matches_for_side("16-avos", "left"), empty_slots=8)
+        with l2:
+            render_phase_column("Oitavas", split_matches_for_side("Oitavas", "left"), empty_slots=4)
+        with l3:
+            render_phase_column("Quartas", split_matches_for_side("Quartas", "left"), empty_slots=2)
+        with l4:
+            render_phase_column("Semi", split_matches_for_side("Semifinal", "left"), empty_slots=1)
+
+    with center:
+        st.markdown("<div class='fifa-bracket-title'>Grande Final</div>", unsafe_allow_html=True)
+        final_matches = phases.get("Final", [])
+        if final_matches:
+            render_knockout_match_compact(final_matches[0])
+        else:
+            render_placeholder_card("Final a definir")
+        if st.session_state.champion:
+            st.success(f"🏆 {FLAGS.get(st.session_state.champion,'')} {st.session_state.champion}")
+
+    with right:
+        r1, r2, r3, r4 = st.columns([.9, 1.0, 1.2, 1.4], gap="small")
+        with r1:
+            render_phase_column("Semi", split_matches_for_side("Semifinal", "right"), empty_slots=1)
+        with r2:
+            render_phase_column("Quartas", split_matches_for_side("Quartas", "right"), empty_slots=2)
+        with r3:
+            render_phase_column("Oitavas", split_matches_for_side("Oitavas", "right"), empty_slots=4)
+        with r4:
+            render_phase_column("16-avos", split_matches_for_side("16-avos", "right"), empty_slots=8)
+
+
 def render_knockout_match(m):
     mid, phase, home, away = m["id"], m["phase"], m["home"], m["away"]
     current = st.session_state.results.get(mid, {"home_goals": 0, "away_goals": 0, "played": False, "winner": home})
@@ -724,21 +1028,10 @@ def advance_round(phase):
         st.session_state.team_stage[w] = next_phase
 
 def simulate_round(phase):
+    """Simula todos os jogos de uma fase do mata-mata com sincronização visual completa."""
     for m in st.session_state.knockout_rounds.get(phase, []):
-        hg, ag = simulate_score(m["home"], m["away"])
-        if hg == ag:
-            p_home = team_power(m["home"], OVR_LOOKUP)
-            p_away = team_power(m["away"], OVR_LOOKUP)
-            winner = random.choices([m["home"], m["away"]], weights=[p_home, p_away], k=1)[0]
-        else:
-            winner = m["home"] if hg > ag else m["away"]
-        st.session_state.results[m["id"]] = {"home_goals": int(hg), "away_goals": int(ag), "played": True, "winner": winner}
-        st.session_state[f"{m['id']}_ko_hg"] = int(hg)
-        st.session_state[f"{m['id']}_ko_ag"] = int(ag)
-        st.session_state[f"{m['id']}_ko_played"] = True
-        st.session_state[f"{m['id']}_winner"] = winner
-        make_auto_events(m["id"], m["home"], m["away"], int(hg), int(ag))
-        simulate_cards_for_match(m["id"], m["home"], m["away"])
+        simulate_knockout_match(m)
+    auto_advance_completed_rounds()
 
 # =========================
 # ESTATÍSTICAS E RANKING FINAL
@@ -871,53 +1164,61 @@ with tab_knockout:
     if not all_played_group_matches():
         st.warning("Finalize todos os 72 jogos da fase de grupos para gerar o mata-mata com segurança.")
     else:
-        if not st.session_state.knockout_rounds:
-            if st.button("Gerar chave de 16-avos de final"):
-                generate_round_of_32()
-                st.rerun()
+        top_actions = st.columns([1.4, 1.4, 1.8, 3.4])
+
+        with top_actions[0]:
+            if not st.session_state.knockout_rounds:
+                if st.button("Gerar chave", use_container_width=True):
+                    generate_round_of_32()
+                    st.rerun()
+            else:
+                st.success("Chave gerada")
+
+        with top_actions[1]:
+            if st.session_state.knockout_rounds:
+                if st.button("🎲 Simular próxima fase", use_container_width=True):
+                    for phase in ROUND_ORDER:
+                        if phase in st.session_state.knockout_rounds and not current_round_complete(phase):
+                            simulate_round(phase)
+                            break
+                    auto_advance_completed_rounds()
+                    st.rerun()
+
+        with top_actions[2]:
+            if st.session_state.knockout_rounds:
+                if st.button("🚀 Simular mata-mata restante", use_container_width=True):
+                    simulate_remaining_knockout()
+                    st.rerun()
+
+        with top_actions[3]:
+            st.markdown(
+                "<span class='muted'>ODDs calculadas por OVR médio, ranking FIFA e peso dos craques do elenco.</span>",
+                unsafe_allow_html=True
+            )
+
+    if st.session_state.knockout_rounds:
+        changed = auto_advance_completed_rounds()
+        if changed:
+            st.rerun()
+
+        render_fifa_bracket()
+        st.markdown("---")
+        st.markdown("### Controle por fase")
+
+        visible_phases = [p for p in ROUND_ORDER if p in st.session_state.knockout_rounds]
+        phase_cols = st.columns(len(visible_phases))
+        for idx, phase in enumerate(visible_phases):
+            with phase_cols[idx]:
+                if st.button(f"Simular {phase}", key=f"sim_phase_{phase}", use_container_width=True):
+                    simulate_round(phase)
+                    st.rerun()
+                if current_round_complete(phase):
+                    st.success("Completa")
+                else:
+                    st.info("Pendente")
 
     if st.session_state.champion:
         st.success(f"🏆 Campeão: {FLAGS.get(st.session_state.champion,'')} {st.session_state.champion}")
-
-    if st.session_state.knockout_rounds:
-        round_tabs = st.tabs([r for r in ROUND_ORDER if r in st.session_state.knockout_rounds or r == "16-avos"])
-        for i, phase in enumerate([r for r in ROUND_ORDER if r in st.session_state.knockout_rounds]):
-            with round_tabs[i]:
-                st.markdown(f"### {phase}")
-                b1, b2 = st.columns([1, 3])
-                with b1:
-                    if st.button(f"Simular {phase}", key=f"sim_{phase}"):
-                        simulate_round(phase)
-                        st.rerun()
-                for m in st.session_state.knockout_rounds.get(phase, []):
-                    render_knockout_match(m)
-                if current_round_complete(phase):
-                    if st.button(f"Avançar após {phase}", key=f"adv_{phase}"):
-                        advance_round(phase)
-                        st.rerun()
-
-        st.markdown("### Chaveamento visual")
-        phases = [r for r in ROUND_ORDER if r in st.session_state.knockout_rounds]
-        html = ["<div class='bracket-board'>"]
-        for phase in phases:
-            html.append("<div class='bracket-round'>")
-            html.append(f"<div class='bracket-title'>{phase}</div>")
-            for m in st.session_state.knockout_rounds[phase]:
-                r = st.session_state.results.get(m["id"], {})
-                h_score = r.get("home_goals", "") if r.get("played") else ""
-                a_score = r.get("away_goals", "") if r.get("played") else ""
-                winner = r.get("winner", "") if r.get("played") else ""
-                h_cls = "bracket-winner" if winner == m["home"] else ""
-                a_cls = "bracket-winner" if winner == m["away"] else ""
-                html.append("<div class='bracket-match'>")
-                html.append(f"<div class='bracket-team {h_cls}'><span>{FLAGS.get(m['home'],'')} {m['home']}</span><strong>{h_score}</strong></div>")
-                html.append(f"<div class='bracket-team {a_cls}'><span>{FLAGS.get(m['away'],'')} {m['away']}</span><strong>{a_score}</strong></div>")
-                if winner:
-                    html.append(f"<span class='small-chip'>Avança: {FLAGS.get(winner,'')} {winner}</span>")
-                html.append("</div>")
-            html.append("</div>")
-        html.append("</div>")
-        st.markdown("".join(html), unsafe_allow_html=True)
 
 # =========================
 # ABA: ESTATÍSTICAS
