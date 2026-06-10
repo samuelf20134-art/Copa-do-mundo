@@ -18,7 +18,7 @@ except Exception:
     Image = ImageDraw = ImageFont = None
 
 st.set_page_config(
-    page_title="Dashboard Copa 2026",
+    page_title="Dashboard Copa 2026, bySamuelJakeCascavel",
     page_icon="🏆",
     layout="wide",
     initial_sidebar_state="collapsed"
