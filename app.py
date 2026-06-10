@@ -21,464 +21,140 @@ st.set_page_config(
 # CSS / DARK DASHBOARD
 # =========================
 def inject_css():
+    """PATCH VINTAGE: identidade retrô, placar clássico e tela menos poluída."""
     st.markdown("""
     <style>
+    @import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@500;700&family=Merriweather:wght@400;700;900&display=swap');
+
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    .stApp {
-        background: radial-gradient(circle at top left, #1b2a2f 0%, #090d10 42%, #050607 100%);
-        color: #f2f2f2;
-    }
-    h1, h2, h3 {
-        color: #f8d66d !important;
-        letter-spacing: .3px;
-    }
-    .block-container {
-        padding-top: 2.2rem;
-        padding-bottom: 3rem;
-    }
-    div[data-testid="stMetric"] {
-        background: linear-gradient(135deg, #111820, #172228);
-        border: 1px solid rgba(248,214,109,.35);
-        border-radius: 18px;
-        padding: 16px;
-        box-shadow: 0 8px 24px rgba(0,0,0,.28);
-    }
-    div[data-testid="stMetricLabel"] {
-        color: #aeb9c2 !important;
-    }
-    div[data-testid="stMetricValue"] {
-        color: #39ff88 !important;
-    }
-    .card {
-        background: linear-gradient(135deg, rgba(17,24,32,.98), rgba(9,13,16,.96));
-        border: 1px solid rgba(248,214,109,.25);
-        border-radius: 18px;
-        padding: 18px;
-        margin: 10px 0;
-        box-shadow: 0 10px 30px rgba(0,0,0,.35);
-    }
-    .match-card {
-        background: #0e1419;
-        border-left: 4px solid #39ff88;
-        border-radius: 14px;
-        padding: 14px;
-        margin: 10px 0 16px 0;
-    }
-    .round-card {
-        background: #101820;
-        border: 1px solid rgba(57,255,136,.22);
-        border-radius: 16px;
-        padding: 14px;
-        margin-bottom: 14px;
-    }
-    .teamline {
-        font-size: 1.05rem;
-        font-weight: 700;
-    }
-    .muted {
-        color: #9ba6af;
-        font-size: .92rem;
-    }
-    .gold {
-        color: #f8d66d;
-        font-weight: 800;
-    }
-    .neon {
-        color: #39ff88;
-        font-weight: 800;
-    }
-    .stButton > button {
-        background: linear-gradient(90deg, #1d7f4e, #39ff88);
-        color: #06100a;
-        border: 0;
-        border-radius: 12px;
-        font-weight: 800;
-        padding: .55rem 1rem;
-    }
-    .stButton > button:hover {
-        filter: brightness(1.10);
-        color: #000;
-    }
-    div[data-testid="stDataFrame"] {
-        border: 1px solid rgba(248,214,109,.20);
-        border-radius: 14px;
-        overflow: hidden;
-    }
-    [data-baseweb="tab-list"] {
-        gap: 8px;
-    }
-    [data-baseweb="tab"] {
-        background-color: #111820;
-        border-radius: 12px 12px 0 0;
-        color: #d9e0e5;
-        border: 1px solid rgba(248,214,109,.14);
-    }
-    [aria-selected="true"] {
-        color: #39ff88 !important;
-        border-bottom: 2px solid #39ff88 !important;
-    }
 
-    /* GE-like dark readability fixes */
-    input, textarea {
-        color: #f9fafb !important;
-        background-color: #111827 !important;
-        border: 1px solid #334155 !important;
-        border-radius: 10px !important;
+    :root {
+        --paper: #d8c79a;
+        --paper-soft: #efe0b7;
+        --ink: #17150f;
+        --pitch: #172418;
+        --pitch-2: #24351f;
+        --moss: #556b2f;
+        --gold: #c9a227;
+        --cream: #f3ead0;
+        --rust: #8b3f2f;
+        --line: rgba(239, 224, 183, .18);
     }
-    div[data-baseweb="select"] > div {
-        background-color: #111827 !important;
-        color: #f9fafb !important;
-        border-color: #334155 !important;
-    }
-    .bracket-board {
-        display: flex;
-        gap: 14px;
-        overflow-x: auto;
-        padding: 12px 2px 20px 2px;
-    }
-    .bracket-round {
-        min-width: 240px;
-    }
-    .bracket-title {
-        color: #39ff88;
-        font-weight: 900;
-        margin-bottom: 10px;
-        text-transform: uppercase;
-        font-size: .88rem;
-        letter-spacing: .08em;
-    }
-    .bracket-match {
-        position: relative;
-        background: linear-gradient(135deg, #0f172a, #111820);
-        border: 1px solid rgba(57,255,136,.28);
-        border-left: 4px solid #39ff88;
-        border-radius: 14px;
-        padding: 10px 12px;
-        margin-bottom: 14px;
-        color: #f8fafc;
-        box-shadow: 0 8px 18px rgba(0,0,0,.25);
-    }
-    .bracket-team {
-        display: flex;
-        justify-content: space-between;
-        gap: 8px;
-        font-size: .92rem;
-        padding: 3px 0;
-        border-bottom: 1px solid rgba(148,163,184,.12);
-    }
-    .bracket-team:last-child { border-bottom: 0; }
-    .bracket-winner { color: #39ff88; font-weight: 900; }
-    .small-chip {
-        display: inline-block;
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: rgba(57,255,136,.12);
-        border: 1px solid rgba(57,255,136,.35);
-        color: #d1fae5;
-        font-size: .78rem;
-        font-weight: 800;
-    }
-
-    /* ===== PATCH: Bracket FIFA compacto ===== */
-    .fifa-bracket-title {
-        color: #39ff88;
-        font-weight: 900;
-        font-size: .76rem;
-        letter-spacing: .08em;
-        text-transform: uppercase;
-        margin: 8px 0 10px 0;
-        text-align: center;
-    }
-    .ko-card-compact {
-        background: linear-gradient(135deg, #0b1117, #111820);
-        border: 1px solid rgba(57,255,136,.24);
-        border-left: 3px solid #39ff88;
-        border-radius: 12px;
-        padding: 8px 9px;
-        margin-bottom: 10px;
-        box-shadow: 0 8px 18px rgba(0,0,0,.24);
-    }
-    .ko-card-header { color: #f8d66d; font-size: .73rem; font-weight: 900; margin-bottom: 4px; }
-    .ko-team-row {
-        display: flex; justify-content: space-between; align-items: center; gap: 6px;
-        color: #f8fafc; font-size: .78rem; padding: 2px 0;
-        border-bottom: 1px solid rgba(148,163,184,.11);
-    }
-    .ko-team-row:last-child { border-bottom: none; }
-    .ko-winner-row { color: #39ff88 !important; font-weight: 900; }
-    .ko-odds { margin-top: 5px; color: #a7f3d0; font-size: .68rem; line-height: 1.25; }
-    .ko-decider { margin-top: 5px; color: #cbd5e1; font-size: .66rem; line-height: 1.25; }
-    .ko-placeholder {
-        background: rgba(15,23,42,.45); border: 1px dashed rgba(148,163,184,.28);
-        border-radius: 12px; padding: 12px 8px; margin-bottom: 10px;
-        color: #64748b; font-size: .72rem; text-align: center;
-    }
-
-
-    /* ===== PATCH VISUAL CLEAN + PRANCHETA TÁTICA ===== */
-    .block-container { padding-top: 1.25rem; }
-    h1, h2, h3 { letter-spacing: .1px; }
-
-    .card, .match-card, .round-card, .ko-card-compact {
-        box-shadow: none !important;
-    }
-
-    .match-card {
-        background: rgba(15, 23, 42, .58) !important;
-        border-left: 2px solid rgba(57,255,136,.70) !important;
-        border-radius: 14px !important;
-        padding: 12px 14px !important;
-        margin: 8px 0 12px 0 !important;
-    }
-
-    div[data-testid="stDataFrame"] {
-        border: 1px solid rgba(148,163,184,.12) !important;
-        border-radius: 12px !important;
-        overflow: hidden !important;
-        background: rgba(15,23,42,.36) !important;
-    }
-
-    .clean-card {
-        background: rgba(15,23,42,.46);
-        border: 1px solid rgba(148,163,184,.14);
-        border-radius: 16px;
-        padding: 14px;
-        margin: 8px 0;
-    }
-
-    .mini-stat-card {
-        background: rgba(15,23,42,.42);
-        border: 1px solid rgba(57,255,136,.14);
-        border-radius: 16px;
-        padding: 12px;
-        margin-bottom: 10px;
-    }
-
-    .mini-stat-title {
-        color: #94a3b8;
-        font-size: .76rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: .06em;
-    }
-
-    .mini-stat-value {
-        color: #f8fafc;
-        font-size: 1.18rem;
-        font-weight: 900;
-        margin-top: 4px;
-    }
-
-    .mini-stat-sub {
-        color: #94a3b8;
-        font-size: .78rem;
-        margin-top: 3px;
-    }
-
-    .ko-card-compact {
-        background: rgba(15,23,42,.54) !important;
-        border: 1px solid rgba(148,163,184,.16) !important;
-        border-left: 2px solid rgba(57,255,136,.65) !important;
-        border-radius: 13px !important;
-        padding: 8px !important;
-        margin-bottom: 9px !important;
-    }
-
-    .ko-card-header {
-        color: #94a3b8 !important;
-        font-size: .66rem !important;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-        margin-bottom: 5px !important;
-    }
-
-    .ko-team-row {
-        color: #f8fafc !important;
-        font-size: .76rem !important;
-        border-bottom: 1px solid rgba(148,163,184,.08) !important;
-    }
-
-    .ko-odds {
-        color: #39ff88 !important;
-        font-size: .66rem !important;
-        margin-top: 5px !important;
-    }
-
-    .ko-decider { display: none !important; }
-
-    .tactic-pitch {
-        background:
-            linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px),
-            linear-gradient(180deg, rgba(255,255,255,.05) 1px, transparent 1px),
-            radial-gradient(circle at center, rgba(57,255,136,.10), transparent 38%),
-            linear-gradient(135deg, rgba(20,83,45,.52), rgba(6,78,59,.22));
-        background-size: 42px 42px, 42px 42px, auto, auto;
-        border: 1px solid rgba(57,255,136,.26);
-        border-radius: 22px;
-        padding: 18px;
-        margin: 10px 0;
-    }
-
-    .tactic-line-title {
-        color: #39ff88;
-        font-size: .74rem;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        margin: 8px 0 4px 0;
-        text-align: center;
-    }
-
-    .player-chip {
-        background: rgba(15,23,42,.68);
-        border: 1px solid rgba(248,250,252,.12);
-        border-radius: 14px;
-        padding: 8px;
-        color: #f8fafc;
-        text-align: center;
-        font-size: .75rem;
-        min-height: 54px;
-    }
-
-    .player-chip strong { color: #f8d66d; }
-
-    .reserve-box {
-        background: rgba(15,23,42,.44);
-        border: 1px solid rgba(148,163,184,.14);
-        border-radius: 16px;
-        padding: 12px;
-    }
-
-
-
-    /* ===== PATCH UI/UX FINAL: brutalista limpo, mata-mata clean e escudo de camisa ===== */
-    @import url('https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;900&family=Inter:wght@400;600;800&display=swap');
 
     html, body, [class*="css"] {
-        font-family: 'Inter', sans-serif !important;
+        font-family: 'Merriweather', Georgia, serif !important;
     }
 
     .stApp {
         background:
-            radial-gradient(circle at 8% 4%, rgba(248,214,109,.10) 0%, transparent 26%),
-            radial-gradient(circle at 82% 18%, rgba(57,255,136,.07) 0%, transparent 24%),
-            linear-gradient(135deg, #060606 0%, #0b0d0a 44%, #111008 100%) !important;
-        color: #f4f4ef !important;
-    }
-
-    h1, h2, h3 {
-        font-family: 'Archivo', sans-serif !important;
-        color: #f4f4ef !important;
-        font-weight: 900 !important;
-        letter-spacing: -.04em !important;
+            radial-gradient(circle at 9% 6%, rgba(216,199,154,.11), transparent 28%),
+            radial-gradient(circle at 85% 12%, rgba(85,107,47,.22), transparent 26%),
+            repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0px, rgba(255,255,255,.018) 1px, transparent 1px, transparent 5px),
+            linear-gradient(135deg, #0c100b 0%, #151c12 46%, #090b08 100%) !important;
+        color: var(--cream) !important;
     }
 
     .block-container {
         max-width: 98vw !important;
-        padding-top: 1rem !important;
-        padding-left: 1.2rem !important;
-        padding-right: 1.2rem !important;
+        padding-top: 1.1rem !important;
+        padding-left: 1.1rem !important;
+        padding-right: 1.1rem !important;
+        padding-bottom: 3rem !important;
     }
 
-    .card {
-        background: rgba(13, 13, 10, .62) !important;
-        border: 1px solid rgba(244,244,239,.08) !important;
-        border-radius: 18px !important;
+    h1, h2, h3 {
+        font-family: 'Archivo Black', Impact, sans-serif !important;
+        color: var(--paper-soft) !important;
+        letter-spacing: -.045em !important;
+        text-transform: uppercase;
+    }
+
+    .muted { color: rgba(243,234,208,.66) !important; }
+    .gold { color: var(--gold) !important; font-weight: 900; }
+    .neon { color: var(--paper-soft) !important; font-weight: 900; }
+
+    .card, .clean-card, .round-card, .match-card, .ko-card-compact, .group-shell {
         box-shadow: none !important;
-        padding: 16px 18px !important;
     }
 
-    .card h1 { margin-bottom: .15rem !important; }
-
-    .muted { color: #a6a397 !important; }
-    .gold { color: #f8d66d !important; }
-    .neon { color: #39ff88 !important; }
+    .card, .clean-card {
+        background: rgba(23, 21, 15, .52) !important;
+        border: 1px solid rgba(216,199,154,.16) !important;
+        border-radius: 10px !important;
+        padding: 14px 16px !important;
+    }
 
     .stButton > button {
-        background: #f8d66d !important;
-        color: #0b0d0a !important;
-        border: 0 !important;
-        border-radius: 999px !important;
-        font-family: 'Archivo', sans-serif !important;
-        font-weight: 900 !important;
+        background: var(--paper) !important;
+        color: var(--ink) !important;
+        border: 1px solid rgba(23,21,15,.7) !important;
+        border-radius: 6px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
         letter-spacing: -.02em !important;
-        box-shadow: none !important;
-        min-height: 2.25rem !important;
+        box-shadow: 3px 3px 0 rgba(0,0,0,.36) !important;
+        min-height: 2.15rem !important;
     }
 
     .stButton > button:hover {
-        background: #39ff88 !important;
-        color: #050505 !important;
-        transform: translateY(-1px);
+        background: var(--gold) !important;
+        color: #090b08 !important;
+        transform: translate(-1px, -1px);
     }
 
     div[data-testid="stMetric"] {
-        background: rgba(244,244,239,.045) !important;
-        border: 1px solid rgba(244,244,239,.08) !important;
-        border-radius: 16px !important;
-        padding: 13px 14px !important;
+        background: rgba(239,224,183,.07) !important;
+        border: 1px solid rgba(216,199,154,.16) !important;
+        border-radius: 8px !important;
+        padding: 12px 14px !important;
         box-shadow: none !important;
     }
-
     div[data-testid="stMetricValue"] {
-        color: #f8d66d !important;
-        font-family: 'Archivo', sans-serif !important;
-        font-weight: 900 !important;
+        color: var(--paper-soft) !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-weight: 700 !important;
     }
-
-    div[data-testid="stMetricLabel"] { color: #a6a397 !important; }
-
-    div[data-testid="stDataFrame"] {
-        border: 1px solid rgba(244,244,239,.07) !important;
-        border-radius: 14px !important;
-        background: rgba(244,244,239,.035) !important;
-    }
+    div[data-testid="stMetricLabel"] { color: rgba(243,234,208,.62) !important; }
 
     input, textarea {
-        background: rgba(244,244,239,.06) !important;
-        border: 1px solid rgba(244,244,239,.12) !important;
-        color: #f4f4ef !important;
-        border-radius: 10px !important;
+        background: rgba(239,224,183,.08) !important;
+        border: 1px solid rgba(216,199,154,.18) !important;
+        color: var(--cream) !important;
+        border-radius: 6px !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-weight: 700 !important;
     }
 
     div[data-baseweb="select"] > div {
-        background-color: rgba(244,244,239,.06) !important;
-        color: #f4f4ef !important;
-        border-color: rgba(244,244,239,.12) !important;
-        border-radius: 12px !important;
+        background-color: rgba(239,224,183,.08) !important;
+        color: var(--cream) !important;
+        border-color: rgba(216,199,154,.18) !important;
+        border-radius: 6px !important;
     }
 
+    div[data-testid="stDataFrame"] {
+        border: 1px solid rgba(216,199,154,.14) !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+        background: rgba(23,21,15,.35) !important;
+    }
+
+    [data-baseweb="tab-list"] { gap: 12px; border-bottom: 1px solid rgba(216,199,154,.13); }
     [data-baseweb="tab"] {
         background: transparent !important;
         border: 0 !important;
-        color: #a6a397 !important;
+        color: rgba(243,234,208,.62) !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
         border-radius: 0 !important;
-        font-family: 'Archivo', sans-serif !important;
-        font-weight: 800 !important;
     }
-
     [aria-selected="true"] {
-        color: #f8d66d !important;
-        border-bottom: 3px solid #f8d66d !important;
-    }
-
-    .group-shell {
-        background: rgba(244,244,239,.035);
-        border: 1px solid rgba(244,244,239,.07);
-        border-radius: 18px;
-        padding: 10px;
-        margin-bottom: 12px;
-    }
-
-    .group-mini-title {
-        font-family: 'Archivo', sans-serif;
-        font-size: .83rem;
-        font-weight: 900;
-        color: #f8d66d;
-        letter-spacing: -.02em;
-        margin-bottom: 4px;
+        color: var(--paper-soft) !important;
+        border-bottom: 3px solid var(--gold) !important;
     }
 
     .shirt-badge {
@@ -487,46 +163,107 @@ def inject_css():
         height: 26px;
         align-items: center;
         justify-content: center;
-        border-radius: 8px 8px 12px 12px;
-        background: linear-gradient(145deg, rgba(248,214,109,.18), rgba(244,244,239,.06));
-        border: 1px solid rgba(248,214,109,.28);
+        border-radius: 7px 7px 12px 12px;
+        background: linear-gradient(145deg, rgba(216,199,154,.24), rgba(85,107,47,.14));
+        border: 1px solid rgba(216,199,154,.28);
         margin-right: 6px;
         font-size: 1rem;
-        box-shadow: inset 0 -5px 0 rgba(0,0,0,.18);
+        box-shadow: inset 0 -6px 0 rgba(0,0,0,.19);
     }
 
+    .group-shell {
+        background: rgba(23, 21, 15, .44) !important;
+        border: 1px solid rgba(216,199,154,.13) !important;
+        border-radius: 9px !important;
+        padding: 10px !important;
+        margin-bottom: 12px !important;
+    }
+    .group-mini-title {
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: .78rem;
+        font-weight: 700;
+        color: var(--gold);
+        letter-spacing: .03em;
+        text-transform: uppercase;
+        margin-bottom: 4px;
+    }
+
+    .match-card-vintage {
+        background: rgba(23, 21, 15, .48);
+        border: 1px solid rgba(216,199,154,.13);
+        border-radius: 8px;
+        padding: 8px 10px;
+        margin: 7px 0 10px 0;
+    }
+    .match-scoreline {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
+        align-items: center;
+        gap: 8px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 700;
+    }
+    .match-team-left, .match-team-right {
+        color: var(--cream);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        font-size: .83rem;
+    }
+    .match-team-right { text-align: right; }
+    .scoreboard-number {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        min-width: 30px;
+        padding: 3px 5px;
+        background: #080807;
+        color: var(--paper-soft);
+        border: 1px solid rgba(216,199,154,.2);
+        border-radius: 4px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 700;
+        font-size: 1rem;
+    }
+    .score-separator { color: rgba(243,234,208,.45); margin: 0 2px; }
+
+    .fifa-bracket-title {
+        color: var(--gold) !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: .68rem !important;
+        font-weight: 700 !important;
+        text-transform: uppercase !important;
+        letter-spacing: .07em !important;
+        text-align: left !important;
+        margin: 4px 0 8px 2px !important;
+    }
     .ko-card-compact {
-        background: rgba(244,244,239,.045) !important;
-        border: 1px solid rgba(244,244,239,.09) !important;
+        background: rgba(23,21,15,.50) !important;
+        border: 1px solid rgba(216,199,154,.14) !important;
         border-left: 0 !important;
-        border-radius: 14px !important;
-        padding: 9px !important;
-        margin-bottom: 10px !important;
-        box-shadow: none !important;
+        border-radius: 8px !important;
+        padding: 8px !important;
+        margin-bottom: 9px !important;
     }
-
     .ko-card-header {
-        color: #777469 !important;
-        font-family: 'Archivo', sans-serif !important;
-        font-size: .62rem !important;
+        color: rgba(243,234,208,.48) !important;
+        font-family: 'IBM Plex Mono', monospace !important;
+        font-size: .61rem !important;
         text-transform: uppercase !important;
         letter-spacing: .08em !important;
-        margin-bottom: 7px !important;
+        margin-bottom: 6px !important;
     }
-
     .ko-team-row {
         display: flex !important;
         justify-content: space-between !important;
         align-items: center !important;
         gap: 6px !important;
-        color: #f4f4ef !important;
-        font-size: .76rem !important;
-        border-bottom: 1px solid rgba(244,244,239,.055) !important;
+        color: var(--cream) !important;
+        font-size: .74rem !important;
+        border-bottom: 1px solid rgba(216,199,154,.08) !important;
         padding: 4px 0 !important;
     }
-
     .ko-team-row:last-child { border-bottom: none !important; }
-
     .ko-team-name {
         display: inline-flex;
         align-items: center;
@@ -536,53 +273,65 @@ def inject_css():
         text-overflow: ellipsis;
         max-width: 132px;
     }
-
     .ko-score-pill {
-        min-width: 26px;
+        min-width: 28px;
         text-align: center;
-        background: rgba(0,0,0,.34);
-        color: #f8d66d;
-        border: 1px solid rgba(248,214,109,.18);
-        border-radius: 10px;
-        font-family: 'Archivo', sans-serif;
-        font-weight: 900;
+        background: #070706;
+        color: var(--paper-soft);
+        border: 1px solid rgba(216,199,154,.20);
+        border-radius: 4px;
+        font-family: 'IBM Plex Mono', monospace;
+        font-weight: 700;
         padding: 2px 6px;
     }
-
-    .ko-winner-row { color: #39ff88 !important; font-weight: 900 !important; }
-
-    .fifa-bracket-title {
-        color: #f8d66d !important;
-        font-family: 'Archivo', sans-serif !important;
-        font-size: .69rem !important;
-        font-weight: 900 !important;
-        letter-spacing: .08em !important;
-        text-align: left !important;
-        margin-left: 3px !important;
+    .ko-winner-row { color: #f0d98e !important; font-weight: 900 !important; }
+    .ko-placeholder {
+        background: rgba(23,21,15,.28) !important;
+        border: 1px dashed rgba(216,199,154,.17) !important;
+        border-radius: 8px !important;
+        padding: 12px 8px !important;
+        margin-bottom: 10px !important;
+        color: rgba(243,234,208,.42) !important;
+        font-family: 'IBM Plex Mono', monospace;
+        font-size: .68rem !important;
+        text-align: center;
     }
-
     .details-copy {
-        color: #a6a397;
-        font-size: .75rem;
-        line-height: 1.35;
+        color: rgba(243,234,208,.72);
+        font-size: .78rem;
+        line-height: 1.45;
     }
-
     .thirds-trigger-card {
-        background: linear-gradient(135deg, rgba(248,214,109,.12), rgba(57,255,136,.06));
-        border: 1px solid rgba(248,214,109,.18);
-        border-radius: 18px;
-        padding: 12px;
-        margin: 8px 0 16px 0;
+        background: rgba(23, 21, 15, .42);
+        border: 1px solid rgba(216,199,154,.14);
+        border-radius: 9px;
+        padding: 10px 12px;
+        margin: 8px 0 14px 0;
     }
-
     .thirds-title {
-        font-family: 'Archivo', sans-serif;
-        color: #f8d66d;
-        font-size: .95rem;
-        font-weight: 900;
-        letter-spacing: -.02em;
+        font-family: 'IBM Plex Mono', monospace;
+        color: var(--gold);
+        font-size: .86rem;
+        font-weight: 700;
+        text-transform: uppercase;
     }
-
+    .tactic-pitch {
+        background:
+            linear-gradient(90deg, rgba(216,199,154,.06) 1px, transparent 1px),
+            linear-gradient(180deg, rgba(216,199,154,.06) 1px, transparent 1px),
+            linear-gradient(135deg, rgba(45,70,38,.65), rgba(23,36,24,.44));
+        background-size: 42px 42px, 42px 42px, auto;
+        border: 1px solid rgba(216,199,154,.20);
+        border-radius: 14px;
+        padding: 18px;
+        margin: 10px 0;
+    }
+    .player-chip, .reserve-box {
+        background: rgba(23,21,15,.45) !important;
+        border: 1px solid rgba(216,199,154,.12) !important;
+        border-radius: 8px !important;
+        color: var(--cream) !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -622,6 +371,45 @@ FLAGS = {
     "Portugal":"🇵🇹", "Colômbia":"🇨🇴", "Uzbequistão":"🇺🇿", "RD Congo":"🇨🇩",
     "Inglaterra":"🏴󠁧󠁢󠁥󠁮󠁧󠁿", "Croácia":"🇭🇷", "Gana":"🇬🇭", "Panamá":"🇵🇦",
 }
+
+
+def team_badge_html(team: str) -> str:
+    """PATCH VINTAGE: badge estilo escudo/camisa usando a bandeira da seleção."""
+    return f"<span class='shirt-badge'>{FLAGS.get(team, '🏳️')}</span>"
+
+
+def team_label_html(team: str) -> str:
+    """PATCH VINTAGE: rótulo HTML seguro para cards compactos."""
+    return f"{team_badge_html(team)}<span>{team}</span>"
+
+
+def event_summary_text(match_id: str) -> str:
+    """Resumo humano dos autores de gols e assistências já salvos no session_state."""
+    events = st.session_state.events.get(match_id, [])
+    if not events:
+        return "Sem gols registrados."
+
+    lines = []
+    for ev in events:
+        team = ev.get("team", "")
+        scorer = ev.get("scorer", "") or "Autor indefinido"
+        assist = ev.get("assist", "")
+        if assist:
+            lines.append(f"{FLAGS.get(team, '')} {team}: {scorer} — assistência: {assist}")
+        else:
+            lines.append(f"{FLAGS.get(team, '')} {team}: {scorer}")
+    return "<br>".join(lines)
+
+
+def ensure_events_for_score(match_id: str, home: str, away: str, hg: int, ag: int):
+    """PATCH BUGFIX: garante que todo placar confirmado tenha os eventos correspondentes."""
+    expected = int(hg) + int(ag)
+    current = st.session_state.events.get(match_id, [])
+    if expected == 0:
+        st.session_state.events[match_id] = []
+        return
+    if len(current) != expected:
+        make_auto_events(match_id, home, away, int(hg), int(ag))
 
 # Ranking mockado: quanto menor, mais forte.
 FIFA_RANKING = {
@@ -1190,12 +978,8 @@ def simulate_score(home: str, away: str) -> tuple[int, int]:
 
 def store_simulated_match(m):
     """
-    Simula uma partida da fase de grupos e sincroniza tudo que a interface usa:
-    - resultado lógico da classificação;
-    - inputs visuais do placar;
-    - checkbox de jogo confirmado;
-    - eventos automáticos de gols/assistências;
-    - cartões/fair play.
+    PATCH BUGFIX: simula partida de grupo e sincroniza placar + autores/assistências.
+    Resolve o caso em que a tabela atualizava, mas os detalhes do jogo ficavam vazios.
     """
     mid = m["id"]
     home, away = m["home"], m["away"]
@@ -1207,12 +991,12 @@ def store_simulated_match(m):
         "played": True
     }
 
-    # Estes são os estados dos widgets number_input/checkbox da tela.
-    # Sem isso, a classificação muda, mas o placar visual fica 0x0.
+    # Sincroniza os widgets visuais.
     st.session_state[f"{mid}_hg"] = int(hg)
     st.session_state[f"{mid}_ag"] = int(ag)
     st.session_state[f"{mid}_played"] = True
 
+    # Gols/assistências e cartões também entram no estado imediatamente.
     make_auto_events(mid, home, away, int(hg), int(ag))
     simulate_cards_for_match(mid, home, away)
     return int(hg), int(ag)
@@ -1244,43 +1028,48 @@ def display_from_pure_name(team: str, pure_name: str) -> str:
 
 def make_auto_events(match_id, home, away, hg, ag):
     """
-    Sorteia automaticamente autores dos gols e assistentes.
-    Além de salvar os eventos, preenche também os estados dos selectboxes,
-    para que a interface mostre os jogadores sorteados após simular grupo/partida.
+    PATCH BUGFIX: sorteia autores e assistentes e salva em todos os lugares que a UI usa.
+    Atacantes e meias têm maior peso; assistências podem ficar vazias.
     """
     events = []
 
-    for team, goals in [(home, hg), (away, ag)]:
+    for team, goals in [(home, int(hg)), (away, int(ag))]:
         df = players_df[players_df["team"] == team].copy()
+        if df.empty or goals <= 0:
+            continue
 
-        # Atacantes e meias têm mais chance de participar de gols.
-        weights = df["pos"].map({"FW": 5.0, "MF": 3.0, "DF": 1.2, "GK": 0.05}).fillna(1.0).to_numpy(dtype=float)
+        pos_weights = {"FW": 5.2, "MF": 3.2, "DF": 1.1, "GK": 0.03}
+        weights = df["pos"].map(pos_weights).fillna(1.0).to_numpy(dtype=float)
+
+        # Craques participam um pouco mais, mas sem virar videogame quebrado.
+        if "ovr" in df.columns:
+            ovr_boost = np.clip((df["ovr"].to_numpy(dtype=float) - 65) / 25, 0, 1.4)
+            weights = weights * (1 + ovr_boost)
+
         weights = weights / weights.sum()
         names = df["display"].tolist()
 
-        for goal_n in range(int(goals)):
-            scorer_display = np.random.choice(names, p=weights)
+        for goal_n in range(goals):
+            scorer_display = str(np.random.choice(names, p=weights))
 
             assist_options = ["Sem assistência"] + names
-            assist_weights = [0.18] + list(weights * 0.82)
-            assist_display = np.random.choice(assist_options, p=assist_weights)
+            assist_weights = np.array([0.20] + list(weights * 0.80), dtype=float)
+            assist_weights = assist_weights / assist_weights.sum()
+            assist_display = str(np.random.choice(assist_options, p=assist_weights))
 
-            # Evita assistência para o próprio autor do gol.
             if assist_display == scorer_display:
                 assist_display = "Sem assistência"
 
             scorer_pure = pure_player_name(scorer_display)
             assist_pure = pure_player_name(assist_display)
-
             events.append({"team": team, "scorer": scorer_pure, "assist": assist_pure})
 
-            # Estados dos widgets selectbox já existentes.
-            scorer_key = f"{match_id}_{team}_g{goal_n}_scorer"
-            assist_key = f"{match_id}_{team}_g{goal_n}_assist"
-            st.session_state[scorer_key] = scorer_display
-            st.session_state[assist_key] = assist_display
+            # Keys dos selectboxes. Assim, ao abrir Detalhes, já aparece preenchido.
+            st.session_state[f"{match_id}_{team}_g{goal_n}_scorer"] = scorer_display
+            st.session_state[f"{match_id}_{team}_g{goal_n}_assist"] = assist_display
 
     st.session_state.events[match_id] = events
+
 
 def render_goal_selectors(match_id: str, home: str, away: str, hg: int, ag: int):
     """
@@ -1333,44 +1122,80 @@ def render_goal_selectors(match_id: str, home: str, away: str, hg: int, ag: int)
     st.session_state.events[match_id] = updated_events
 
 def render_match_input(m):
+    """PATCH VINTAGE: jogo de grupo limpo; detalhes ficam no popover."""
     mid = m["id"]
     home, away = m["home"], m["away"]
     current = st.session_state.results.get(mid, {"home_goals": 0, "away_goals": 0, "played": False})
+
+    st.session_state.setdefault(f"{mid}_hg", int(current.get("home_goals", 0)))
+    st.session_state.setdefault(f"{mid}_ag", int(current.get("away_goals", 0)))
+    st.session_state.setdefault(f"{mid}_played", bool(current.get("played", False)))
+
+    hg_view = int(st.session_state.get(f"{mid}_hg", current.get("home_goals", 0)))
+    ag_view = int(st.session_state.get(f"{mid}_ag", current.get("away_goals", 0)))
+
     st.markdown(f"""
-    <div class="match-card">
-        <div class="teamline">{FLAGS.get(home,'')} {home} <span class="gold">vs</span> {FLAGS.get(away,'')} {away}</div>
-        <div class="muted">Ranking: {home} #{FIFA_RANKING[home]} · OVR titulares {lineup_ovr(home):.1f} | {away} #{FIFA_RANKING[away]} · OVR titulares {lineup_ovr(away):.1f}</div>
+    <div class="match-card-vintage">
+        <div class="match-scoreline">
+            <div class="match-team-left">{team_label_html(home)}</div>
+            <div style="text-align:center;">
+                <span class="scoreboard-number">{hg_view}</span><span class="score-separator">x</span><span class="scoreboard-number">{ag_view}</span>
+            </div>
+            <div class="match-team-right">{team_label_html(away)}</div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
-    c1, c2, c3, c4, c5 = st.columns([1.05, .72, .72, 1.0, 1.55])
+    c1, c2 = st.columns([1.1, .42])
     with c1:
-        if st.button("🎲 Simular", key=f"sim_one_{mid}", use_container_width=True):
-            store_simulated_match(m)
-            st.rerun()
-    current = st.session_state.results.get(mid, current)
-    with c2:
-        hg = st.number_input(f"Gols {home}", min_value=0, max_value=15, value=int(current["home_goals"]), key=f"{mid}_hg")
-    with c3:
-        ag = st.number_input(f"Gols {away}", min_value=0, max_value=15, value=int(current["away_goals"]), key=f"{mid}_ag")
-    with c4:
-        played = st.checkbox("Confirmado", value=bool(current["played"]), key=f"{mid}_played")
-    with c5:
-        t1, t2 = st.columns(2)
-        with t1:
-            if st.button(f"🧩 {home[:9]}", key=f"tactic_{mid}_{home}", use_container_width=True):
-                set_tactic_team(home)
-                st.toast(f"Tática aberta para {home}. Vá na aba 🧩 Tática.")
-        with t2:
-            if st.button(f"🧩 {away[:9]}", key=f"tactic_{mid}_{away}", use_container_width=True):
-                set_tactic_team(away)
-                st.toast(f"Tática aberta para {away}. Vá na aba 🧩 Tática.")
+        d1, d2, d3, d4 = st.columns([.70, .55, .55, .62])
+        with d1:
+            if st.button("🎲 Jogar", key=f"sim_one_{mid}", use_container_width=True):
+                store_simulated_match(m)
+                st.rerun()
+        with d2:
+            hg = st.number_input(f"Gols {home}", min_value=0, max_value=15, key=f"{mid}_hg", label_visibility="collapsed")
+        with d3:
+            ag = st.number_input(f"Gols {away}", min_value=0, max_value=15, key=f"{mid}_ag", label_visibility="collapsed")
+        with d4:
+            played = st.checkbox("OK", key=f"{mid}_played")
 
     st.session_state.results[mid] = {"home_goals": int(hg), "away_goals": int(ag), "played": bool(played)}
+
     if played and mid not in st.session_state.discipline:
-        st.session_state.discipline[mid] = {home: {"yellow": 0, "second_yellow_red": 0, "direct_red": 0, "yellow_direct_red": 0, "fp": 0}, away: {"yellow": 0, "second_yellow_red": 0, "direct_red": 0, "yellow_direct_red": 0, "fp": 0}}
+        st.session_state.discipline[mid] = {
+            home: {"yellow": 0, "second_yellow_red": 0, "direct_red": 0, "yellow_direct_red": 0, "fp": 0},
+            away: {"yellow": 0, "second_yellow_red": 0, "direct_red": 0, "yellow_direct_red": 0, "fp": 0}
+        }
+
     if played:
-        render_goal_selectors(mid, home, away, int(hg), int(ag))
+        ensure_events_for_score(mid, home, away, int(hg), int(ag))
+
+    with c2:
+        if hasattr(st, "popover"):
+            detail_ctx = st.popover("⚙️", use_container_width=True)
+        else:
+            detail_ctx = st.expander("⚙️ Detalhes", expanded=False)
+        with detail_ctx:
+            st.markdown("**Ficha da partida**")
+            st.markdown(
+                f"<div class='details-copy'>Ranking: {home} #{FIFA_RANKING[home]} · OVR titulares {lineup_ovr(home):.1f}<br>"
+                f"Ranking: {away} #{FIFA_RANKING[away]} · OVR titulares {lineup_ovr(away):.1f}</div>",
+                unsafe_allow_html=True
+            )
+            if st.button(f"🧩 Tática {home[:10]}", key=f"tactic_{mid}_{home}", use_container_width=True):
+                set_tactic_team(home)
+                st.toast(f"Prancheta aberta para {home}. Vá na aba 🧩 Tática.")
+            if st.button(f"🧩 Tática {away[:10]}", key=f"tactic_{mid}_{away}", use_container_width=True):
+                set_tactic_team(away)
+                st.toast(f"Prancheta aberta para {away}. Vá na aba 🧩 Tática.")
+            st.markdown("---")
+            st.markdown("**Gols e assistências**")
+            if played:
+                st.markdown(f"<div class='details-copy'>{event_summary_text(mid)}</div>", unsafe_allow_html=True)
+                render_goal_selectors(mid, home, away, int(hg), int(ag))
+            else:
+                st.caption("Confirme o jogo para registrar os eventos.")
 
 # =========================
 # MATA-MATA
@@ -1389,26 +1214,52 @@ STAGE_VALUE = {
 }
 
 def generate_round_of_32():
+    """PATCH BUGFIX: monta os 16-avos com 32 classificados, limpando chave antiga sem apagar grupos."""
     direct, best_thirds, thirds_df = qualified_teams()
-    teams = direct + best_thirds
-    # Ordena os 32 classificados pelo desempenho na fase de grupos.
+    teams = list(dict.fromkeys(direct + best_thirds))
+
     tables, overall = compute_group_tables()
     group_perf = []
     for g, df in tables.items():
         for _, r in df.iterrows():
             if r["Time"] in teams:
                 group_perf.append(r)
-    seed_df = pd.DataFrame(group_perf).sort_values(["Pts","SG","GP","FP","Ranking"], ascending=[False,False,False,True,True]).reset_index(drop=True)
+
+    seed_df = pd.DataFrame(group_perf).sort_values(
+        ["Pts", "SG", "GP", "FP", "Ranking"],
+        ascending=[False, False, False, True, True]
+    ).reset_index(drop=True)
     seeds = seed_df["Time"].tolist()
+
+    if len(seeds) < 32:
+        st.error("Ainda não há 32 classificados. Confira se todos os grupos foram fechados.")
+        return
+    seeds = seeds[:32]
+
+    # Limpa apenas dados antigos do mata-mata, preservando fase de grupos e estatísticas já registradas.
+    old_ko_ids = []
+    for matches in st.session_state.knockout_rounds.values():
+        old_ko_ids.extend([m["id"] for m in matches])
+    for mid in old_ko_ids:
+        st.session_state.results.pop(mid, None)
+        st.session_state.events.pop(mid, None)
+        st.session_state.discipline.pop(mid, None)
 
     pair_indices = [(0,31),(15,16),(7,24),(8,23),(3,28),(12,19),(4,27),(11,20),
                     (1,30),(14,17),(6,25),(9,22),(2,29),(13,18),(5,26),(10,21)]
     matches = []
     for i, (a, b) in enumerate(pair_indices):
         matches.append({"id": f"KO_32_{i}", "phase": "16-avos", "home": seeds[a], "away": seeds[b]})
+
     st.session_state.knockout_rounds = {"16-avos": matches}
+    st.session_state.champion = None
+
+    for t in ALL_TEAMS:
+        if t not in teams:
+            st.session_state.team_stage[t] = "Fase de Grupos"
     for t in teams:
         st.session_state.team_stage[t] = "16-avos"
+
 
 def get_match_winner(mid, home, away, hg, ag):
     if hg > ag:
@@ -1419,7 +1270,7 @@ def get_match_winner(mid, home, away, hg, ag):
 
 
 def simulate_knockout_match(m):
-    """Simula uma partida de mata-mata e sincroniza placar, vencedor, widgets, eventos e cartões."""
+    """PATCH BUGFIX: simula mata-mata e sincroniza placar, vencedor, eventos e cartões."""
     mid, home, away = m["id"], m["home"], m["away"]
     hg, ag = simulate_score(home, away)
 
@@ -1486,29 +1337,23 @@ def render_placeholder_card(label: str = "A definir"):
 
 
 def render_knockout_match_compact(m):
-    """PATCH UI/UX FINAL: card principal super clean; detalhes ficam no liga/desliga."""
+    """PATCH VINTAGE: chave limpa; odds, eventos e tática ficam no popover."""
     mid, phase, home, away = m["id"], m["phase"], m["home"], m["away"]
-    current = st.session_state.results.get(
-        mid,
-        {"home_goals": 0, "away_goals": 0, "played": False, "winner": home}
-    )
+    current = st.session_state.results.get(mid, {"home_goals": 0, "away_goals": 0, "played": False, "winner": home})
 
     st.session_state.setdefault(f"{mid}_ko_hg", int(current.get("home_goals", 0)))
     st.session_state.setdefault(f"{mid}_ko_ag", int(current.get("away_goals", 0)))
     st.session_state.setdefault(f"{mid}_ko_played", bool(current.get("played", False)))
-
     if st.session_state.get(f"{mid}_winner") not in [home, away]:
         st.session_state[f"{mid}_winner"] = current.get("winner", home)
 
+    hg_view = int(st.session_state.get(f"{mid}_ko_hg", current.get("home_goals", 0)))
+    ag_view = int(st.session_state.get(f"{mid}_ko_ag", current.get("away_goals", 0)))
+    played_now = bool(st.session_state.results.get(mid, {}).get("played", False))
     winner_now = st.session_state.results.get(mid, {}).get("winner", "")
-    played_now = st.session_state.results.get(mid, {}).get("played", False)
     h_cls = "ko-winner-row" if winner_now == home and played_now else ""
     a_cls = "ko-winner-row" if winner_now == away and played_now else ""
 
-    hg_view = int(st.session_state.get(f"{mid}_ko_hg", current.get("home_goals", 0)))
-    ag_view = int(st.session_state.get(f"{mid}_ko_ag", current.get("away_goals", 0)))
-
-    # Visão principal: só escudo/bandeira, nome e placar.
     st.markdown(f"""
     <div class="ko-card-compact">
         <div class="ko-card-header">{phase}</div>
@@ -1523,70 +1368,74 @@ def render_knockout_match_compact(m):
     </div>
     """, unsafe_allow_html=True)
 
-    # Placar manual compacto, ainda visível porque é ação primária.
-    c1, c2 = st.columns(2)
+    # Ação primária compacta: placar e status.
+    c1, c2, c3 = st.columns([.46, .46, .42])
     with c1:
-        hg = st.number_input(
-            f"{home[:10]}", min_value=0, max_value=15,
-            key=f"{mid}_ko_hg", label_visibility="collapsed"
-        )
+        hg = st.number_input(f"{home[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_hg", label_visibility="collapsed")
     with c2:
-        ag = st.number_input(
-            f"{away[:10]}", min_value=0, max_value=15,
-            key=f"{mid}_ko_ag", label_visibility="collapsed"
-        )
+        ag = st.number_input(f"{away[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_ag", label_visibility="collapsed")
+    with c3:
+        played = st.checkbox("OK", key=f"{mid}_ko_played")
 
     if int(hg) > int(ag):
         winner = home
     elif int(ag) > int(hg):
         winner = away
     else:
-        winner = st.selectbox("Quem passa?", [home, away], key=f"{mid}_winner")
+        # Empate no mata-mata: vencedor escolhido nos detalhes para não quebrar a chave.
+        winner = st.session_state.get(f"{mid}_winner", home)
 
-    played = st.checkbox("Final", key=f"{mid}_ko_played")
-    st.session_state.results[mid] = {
-        "home_goals": int(hg),
-        "away_goals": int(ag),
-        "played": bool(played),
-        "winner": winner
-    }
+    st.session_state.results[mid] = {"home_goals": int(hg), "away_goals": int(ag), "played": bool(played), "winner": winner}
 
-    # Tudo que polui a chave fica escondido aqui.
-    with st.expander("Detalhes do jogo", expanded=False):
+    if played:
+        ensure_events_for_score(mid, home, away, int(hg), int(ag))
+
+    if hasattr(st, "popover"):
+        detail_ctx = st.popover("⚙️ Detalhes", use_container_width=True)
+    else:
+        detail_ctx = st.expander("⚙️ Detalhes", expanded=False)
+
+    with detail_ctx:
+        d1, d2 = st.columns(2)
+        with d1:
+            if st.button("🎲 Jogar", key=f"sim_ko_one_{mid}", use_container_width=True):
+                simulate_knockout_match(m)
+                auto_advance_completed_rounds()
+                st.rerun()
+        with d2:
+            if st.button("🧩 Tática", key=f"tactic_ko_{mid}", use_container_width=True):
+                set_tactic_team(home)
+                st.toast(f"Prancheta aberta para {home}. Vá na aba 🧩 Tática.")
+
+        if int(hg) == int(ag):
+            winner = st.selectbox("Quem passa se empatar?", [home, away], key=f"{mid}_winner")
+            st.session_state.results[mid]["winner"] = winner
+
         p90 = match_probabilities(home, away, knockout=False)
         pko = match_probabilities(home, away, knockout=True)
-
         st.markdown(
             f"""
             <div class='details-copy'>
                 <strong>Odds 90min</strong><br>
                 {FLAGS.get(home,'')} {home}: {decimal_odd(p90['home'])} · Empate: {decimal_odd(p90['draw'])} · {FLAGS.get(away,'')} {away}: {decimal_odd(p90['away'])}<br><br>
-                <strong>Odds para avançar</strong><br>
+                <strong>Chance de avançar</strong><br>
                 {FLAGS.get(home,'')} {home}: {decimal_odd(pko['home'])} · {FLAGS.get(away,'')} {away}: {decimal_odd(pko['away'])}<br><br>
                 <strong>OVR em campo</strong><br>
                 {home}: {lineup_ovr(home):.1f} · {away}: {lineup_ovr(away):.1f}<br><br>
-                <strong>Quem pode resolver</strong><br>
+                <strong>Camisa pesada</strong><br>
                 {home}: {top_deciders(home, 2)}<br>
                 {away}: {top_deciders(away, 2)}
             </div>
             """,
             unsafe_allow_html=True
         )
-
-        d1, d2 = st.columns(2)
-        with d1:
-            if st.button("🎲 Jogar no motor", key=f"sim_ko_one_{mid}", use_container_width=True):
-                simulate_knockout_match(m)
-                auto_advance_completed_rounds()
-                st.rerun()
-        with d2:
-            if st.button("🧩 Ajustar tática", key=f"tactic_ko_{mid}", use_container_width=True):
-                set_tactic_team(home)
-                st.toast(f"Prancheta aberta para {home}. Vá na aba 🧩 Tática.")
-
+        st.markdown("---")
+        st.markdown("**Gols e assistências**")
         if played:
-            st.markdown("<span class='details-copy'>Gols e assistências</span>", unsafe_allow_html=True)
+            st.markdown(f"<div class='details-copy'>{event_summary_text(mid)}</div>", unsafe_allow_html=True)
             render_goal_selectors(mid, home, away, int(hg), int(ag))
+        else:
+            st.caption("Feche o jogo para registrar os eventos.")
 
 
 def render_phase_column(title: str, matches: list, empty_slots: int = 0):
@@ -1676,13 +1525,22 @@ def current_round_complete(phase):
     return bool(matches) and all(st.session_state.results.get(m["id"], {}).get("played", False) for m in matches)
 
 def advance_round(phase):
+    """PATCH BUGFIX: avança fases sem quebrar quando a rodada ainda não está perfeita."""
     matches = st.session_state.knockout_rounds.get(phase, [])
+    if not matches:
+        return
+
     winners = []
     for m in matches:
-        r = st.session_state.results[m["id"]]
-        winner = get_match_winner(m["id"], m["home"], m["away"], r["home_goals"], r["away_goals"])
+        r = st.session_state.results.get(m["id"])
+        if not r or not r.get("played", False):
+            return
+        winner = get_match_winner(m["id"], m["home"], m["away"], int(r["home_goals"]), int(r["away_goals"]))
+        if winner not in [m["home"], m["away"]]:
+            winner = m["home"]
         loser = m["away"] if winner == m["home"] else m["home"]
         winners.append(winner)
+
         if phase == "Final":
             st.session_state.team_stage[winner] = "Campeão"
             st.session_state.team_stage[loser] = "Vice-campeão"
@@ -1693,13 +1551,19 @@ def advance_round(phase):
     if phase == "Final":
         return
 
+    if len(winners) % 2 != 0:
+        st.warning("Rodada incompleta para montar a próxima fase.")
+        return
+
     next_phase = NEXT_ROUND[phase]
     next_matches = []
     for i in range(0, len(winners), 2):
         next_matches.append({"id": f"KO_{next_phase}_{i//2}", "phase": next_phase, "home": winners[i], "away": winners[i+1]})
+
     st.session_state.knockout_rounds[next_phase] = next_matches
     for w in winners:
         st.session_state.team_stage[w] = next_phase
+
 
 def simulate_round(phase):
     """Simula todos os jogos de uma fase do mata-mata com sincronização visual completa."""
@@ -1794,7 +1658,7 @@ with tab_groups:
             st.rerun()
     with c3:
         st.markdown(
-            "<div class='clean-card'><span class='muted'>Edite placares, confirme jogos e abra gols/assistências quando quiser. O ranking dos terceiros ficou guardado para a tela respirar.</span></div>",
+            "<div class='clean-card'><span class='muted'>Marque o placar no estilo súmula: simples por fora, completo nos detalhes.</span></div>",
             unsafe_allow_html=True
         )
 
@@ -1802,12 +1666,12 @@ with tab_groups:
     direct, best_thirds, thirds_df = qualified_teams()
     show_thirds = thirds_df[["Grupo", "Seleção", "Time", "J", "V", "E", "D", "GP", "GC", "SG", "Pts", "FP", "Ranking", "OVR"]].copy()
 
-    st.markdown("<div class='thirds-trigger-card'><div class='thirds-title'>Corrida dos terceiros</div><div class='muted'>Os 8 melhores terceiros também seguem vivos.</div></div>", unsafe_allow_html=True)
+    st.markdown("<div class='thirds-trigger-card'><div class='thirds-title'>Terceiros na briga</div><div class='muted'>Oito sobrevivem. O resto volta para casa.</div></div>", unsafe_allow_html=True)
 
     # Pop-up/Popover dos melhores terceiros: ocupa zero espaço enquanto fechado.
     if hasattr(st, "popover"):
         with st.popover("🏁 Ver ranking de terceiros", use_container_width=True):
-            st.caption("Critérios: pontos, saldo, gols pró, fair play e ranking.")
+            st.caption("Critérios: pontos, saldo, gols marcados, fair play e ranking.")
             st.dataframe(
                 show_thirds.drop(columns=["Time"]).style.apply(highlight_thirds, axis=1),
                 use_container_width=True,
@@ -1818,7 +1682,7 @@ with tab_groups:
             st.write(", ".join([f"{FLAGS.get(t,'')} {t}" for t in q]))
     else:
         with st.expander("🏁 Ver ranking de terceiros", expanded=False):
-            st.caption("Critérios: pontos, saldo, gols pró, fair play e ranking.")
+            st.caption("Critérios: pontos, saldo, gols marcados, fair play e ranking.")
             st.dataframe(
                 show_thirds.drop(columns=["Time"]).style.apply(highlight_thirds, axis=1),
                 use_container_width=True,
@@ -1842,7 +1706,7 @@ with tab_groups:
             )
 
             matches = [m for m in st.session_state.group_matches if m["group"] == group]
-            with st.expander("Abrir jogos e tabela", expanded=(group in ["A", "B", "C"])):
+            with st.expander("Jogos e tabela", expanded=(group in ["A", "B", "C"])):
                 if st.button(f"🎲 Jogar Grupo {group}", key=f"sim_group_{group}", use_container_width=True):
                     for gm in matches:
                         if not st.session_state.results.get(gm["id"], {}).get("played", False):
@@ -1895,7 +1759,7 @@ with tab_knockout:
 
         with top_actions[3]:
             st.markdown(
-                "<span class='muted'>Odds, OVR e craques ficam nos detalhes de cada partida.</span>",
+                "<span class='muted'>A chave mostra só o essencial. O resto fica na súmula de cada jogo.</span>",
                 unsafe_allow_html=True
             )
 
