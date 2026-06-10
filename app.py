@@ -775,21 +775,138 @@ def odds_text(home: str, away: str) -> str:
 # =========================
 # SESSION STATE
 # =========================
+# =========================
+# PATCH FINAL — TABELA OFICIAL DA FASE DE GRUPOS
+# 72 jogos hardcoded: 6 partidas por grupo, com data e sede.
+# Não altera mata-mata, design, súmulas, OVR, histórico nem qualquer outra regra.
+# =========================
+GROUP_MATCH_SCHEDULE = {
+    "A": [
+        ("11/06", "México", "África do Sul", "Cidade do México"),
+        ("11/06", "Coreia do Sul", "República Tcheca", "Guadalajara"),
+        ("18/06", "República Tcheca", "África do Sul", "Atlanta"),
+        ("18/06", "México", "Coreia do Sul", "Guadalajara"),
+        ("24/06", "República Tcheca", "México", "Cidade do México"),
+        ("24/06", "África do Sul", "Coreia do Sul", "Monterrey"),
+    ],
+    "B": [
+        ("12/06", "Canadá", "Bósnia e Herzegovina", "Toronto"),
+        ("13/06", "Catar", "Suíça", "San Francisco"),
+        ("18/06", "Suíça", "Bósnia e Herzegovina", "Los Angeles"),
+        ("18/06", "Canadá", "Catar", "Vancouver"),
+        ("24/06", "Suíça", "Canadá", "Vancouver"),
+        ("24/06", "Bósnia e Herzegovina", "Catar", "Seattle"),
+    ],
+    "C": [
+        ("13/06", "Brasil", "Marrocos", "Nova York / Nova Jersey"),
+        ("13/06", "Haiti", "Escócia", "Boston"),
+        ("19/06", "Escócia", "Marrocos", "Boston"),
+        ("19/06", "Brasil", "Haiti", "Filadélfia"),
+        ("24/06", "Escócia", "Brasil", "Miami"),
+        ("24/06", "Marrocos", "Haiti", "Atlanta"),
+    ],
+    "D": [
+        ("12/06", "Estados Unidos", "Paraguai", "Los Angeles"),
+        ("14/06", "Austrália", "Turquia", "Vancouver"),
+        ("19/06", "Estados Unidos", "Austrália", "Seattle"),
+        ("20/06", "Turquia", "Paraguai", "San Francisco"),
+        ("25/06", "Turquia", "Estados Unidos", "Los Angeles"),
+        ("25/06", "Paraguai", "Austrália", "San Francisco"),
+    ],
+    "E": [
+        ("14/06", "Alemanha", "Curaçao", "Houston"),
+        ("14/06", "Costa do Marfim", "Equador", "Filadélfia"),
+        ("20/06", "Alemanha", "Costa do Marfim", "Toronto"),
+        ("20/06", "Equador", "Curaçao", "Kansas City"),
+        ("25/06", "Equador", "Alemanha", "Nova York / Nova Jersey"),
+        ("25/06", "Curaçao", "Costa do Marfim", "Filadélfia"),
+    ],
+    "F": [
+        ("14/06", "Países Baixos", "Japão", "Dallas"),
+        ("14/06", "Suécia", "Tunísia", "Monterrey"),
+        ("20/06", "Países Baixos", "Suécia", "Houston"),
+        ("21/06", "Tunísia", "Japão", "Monterrey"),
+        ("25/06", "Japão", "Suécia", "Dallas"),
+        ("25/06", "Tunísia", "Países Baixos", "Kansas City"),
+    ],
+    "G": [
+        ("15/06", "Bélgica", "Egito", "Seattle"),
+        ("15/06", "Irã", "Nova Zelândia", "Los Angeles"),
+        ("21/06", "Bélgica", "Irã", "Los Angeles"),
+        ("21/06", "Nova Zelândia", "Egito", "Vancouver"),
+        ("27/06", "Egito", "Irã", "Seattle"),
+        ("27/06", "Nova Zelândia", "Bélgica", "Vancouver"),
+    ],
+    "H": [
+        ("15/06", "Espanha", "Cabo Verde", "Atlanta"),
+        ("15/06", "Arábia Saudita", "Uruguai", "Miami"),
+        ("21/06", "Espanha", "Arábia Saudita", "Atlanta"),
+        ("21/06", "Uruguai", "Cabo Verde", "Miami"),
+        ("26/06", "Cabo Verde", "Arábia Saudita", "Houston"),
+        ("26/06", "Uruguai", "Espanha", "Guadalajara"),
+    ],
+    "I": [
+        ("16/06", "França", "Senegal", "Nova York / Nova Jersey"),
+        ("16/06", "Iraque", "Noruega", "Boston"),
+        ("22/06", "França", "Iraque", "Filadélfia"),
+        ("22/06", "Noruega", "Senegal", "Nova York / Nova Jersey"),
+        ("26/06", "Noruega", "França", "Boston"),
+        ("26/06", "Senegal", "Iraque", "Toronto"),
+    ],
+    "J": [
+        ("16/06", "Argentina", "Argélia", "Kansas City"),
+        ("17/06", "Áustria", "Jordânia", "San Francisco"),
+        ("22/06", "Argentina", "Áustria", "Dallas"),
+        ("23/06", "Jordânia", "Argélia", "San Francisco"),
+        ("27/06", "Argélia", "Áustria", "Kansas City"),
+        ("27/06", "Jordânia", "Argentina", "Dallas"),
+    ],
+    "K": [
+        ("17/06", "Portugal", "RD Congo", "Houston"),
+        ("17/06", "Uzbequistão", "Colômbia", "Cidade do México"),
+        ("23/06", "Portugal", "Uzbequistão", "Houston"),
+        ("23/06", "Colômbia", "RD Congo", "Guadalajara"),
+        ("27/06", "Colômbia", "Portugal", "Miami"),
+        ("27/06", "RD Congo", "Uzbequistão", "Atlanta"),
+    ],
+    "L": [
+        ("17/06", "Inglaterra", "Croácia", "Dallas"),
+        ("17/06", "Gana", "Panamá", "Toronto"),
+        ("23/06", "Inglaterra", "Gana", "Boston"),
+        ("23/06", "Panamá", "Croácia", "Toronto"),
+        ("27/06", "Panamá", "Inglaterra", "Nova York / Nova Jersey"),
+        ("27/06", "Croácia", "Gana", "Filadélfia"),
+    ],
+}
+
+
 def make_group_matches():
+    """
+    PATCH OFICIAL: gera exatamente os 72 jogos da fase de grupos.
+    Antes o app dependia de combinações automáticas; agora cada confronto segue
+    a tabela enviada, com data e local preservados no dicionário da partida.
+    """
     matches = []
-    for group, teams in GROUPS.items():
-        for i, (home, away) in enumerate(combinations(teams, 2), start=1):
+    for group, fixtures in GROUP_MATCH_SCHEDULE.items():
+        for i, (date, home, away, venue) in enumerate(fixtures, start=1):
             matches.append({
                 "id": f"G{group}_{i}",
                 "phase": "Grupos",
                 "group": group,
+                "date": date,
+                "venue": venue,
                 "home": home,
-                "away": away
+                "away": away,
             })
     return matches
 
 def init_state():
-    if "group_matches" not in st.session_state:
+    # PATCH OFICIAL: garante sempre 72 jogos e evita reaproveitar uma sessão antiga com calendário incompleto.
+    if (
+        "group_matches" not in st.session_state
+        or len(st.session_state.group_matches) != 72
+        or any("date" not in m or "venue" not in m for m in st.session_state.group_matches)
+    ):
         st.session_state.group_matches = make_group_matches()
     if "results" not in st.session_state:
         st.session_state.results = {}
@@ -1562,8 +1679,10 @@ def render_match_input(m):
 
         with detail_ctx:
             st.markdown("**Ficha da partida**")
+            # PATCH OFICIAL: exibe data e sede do jogo sem mexer no desenho principal da tela.
             st.markdown(
-                f"<div class='details-copy'>Ranking: {home} #{FIFA_RANKING[home]} · OVR titulares {lineup_ovr(home):.1f}<br>"
+                f"<div class='details-copy'><strong>{m.get('date', '')}</strong> · {m.get('venue', '')}<br>"
+                f"Ranking: {home} #{FIFA_RANKING[home]} · OVR titulares {lineup_ovr(home):.1f}<br>"
                 f"Ranking: {away} #{FIFA_RANKING[away]} · OVR titulares {lineup_ovr(away):.1f}</div>",
                 unsafe_allow_html=True
             )
