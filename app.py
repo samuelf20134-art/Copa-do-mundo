@@ -391,6 +391,60 @@ def inject_css():
     div[data-testid="stImage"] img {
         border-radius: 50%;
     }
+
+
+    /* ===== PATCH FINAL: assinatura + placar único sem duplicação ===== */
+    .creator-signature {
+        margin-top: -0.65rem;
+        margin-bottom: 1rem;
+        color: #666666 !important;
+        font-size: .82rem;
+        font-weight: 700;
+        letter-spacing: -.01em;
+    }
+
+    .creator-signature strong {
+        color: #e10600 !important;
+        font-weight: 900;
+    }
+
+    .match-single-team-left,
+    .match-single-team-right {
+        display: flex !important;
+        align-items: center !important;
+        min-width: 0 !important;
+        font-size: .74rem !important;
+        font-weight: 800 !important;
+        color: var(--fifa-text) !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        min-height: 34px !important;
+    }
+
+    .match-single-team-left {
+        justify-content: flex-start !important;
+    }
+
+    .match-single-team-right {
+        justify-content: flex-end !important;
+        text-align: right !important;
+    }
+
+    .match-x {
+        text-align: center !important;
+        font-weight: 900 !important;
+        color: #9a9a9a !important;
+        padding-top: .35rem !important;
+    }
+
+    div[data-testid="stNumberInput"] input {
+        text-align: center !important;
+        font-weight: 900 !important;
+        padding-left: 2px !important;
+        padding-right: 2px !important;
+    }
+
     </style>
     """, unsafe_allow_html=True)
 
@@ -1424,45 +1478,66 @@ def render_goal_selectors(match_id: str, home: str, away: str, hg: int, ag: int)
     st.session_state.events[match_id] = updated_events
 
 def render_match_input(m):
-    """PATCH VINTAGE: jogo de grupo limpo; detalhes ficam no popover."""
+    """
+    PATCH FINAL — PLACAR ÚNICO NA FASE DE GRUPOS:
+    remove o placar HTML duplicado e mantém apenas os inputs centrais.
+    Súmula, eventos, tática e simulação continuam iguais.
+    """
     mid = m["id"]
     home, away = m["home"], m["away"]
-    current = st.session_state.results.get(mid, {"home_goals": 0, "away_goals": 0, "played": False})
+    current = st.session_state.results.get(
+        mid,
+        {"home_goals": 0, "away_goals": 0, "played": False}
+    )
 
     st.session_state.setdefault(f"{mid}_hg", int(current.get("home_goals", 0)))
     st.session_state.setdefault(f"{mid}_ag", int(current.get("away_goals", 0)))
     st.session_state.setdefault(f"{mid}_played", bool(current.get("played", False)))
 
-    hg_view = int(st.session_state.get(f"{mid}_hg", current.get("home_goals", 0)))
-    ag_view = int(st.session_state.get(f"{mid}_ag", current.get("away_goals", 0)))
+    # Linha principal do confronto: escudo/nome + placar único + escudo/nome.
+    c_team_h, c_hg, c_x, c_ag, c_team_a, c_details = st.columns([1.35, .34, .08, .34, 1.35, .30])
 
-    st.markdown(f"""
-    <div class="match-card-vintage">
-        <div class="match-scoreline">
-            <div class="match-team-left">{team_label_html(home)}</div>
-            <div style="text-align:center;">
-                <span class="scoreboard-number">{hg_view}</span><span class="score-separator">x</span><span class="scoreboard-number">{ag_view}</span>
-            </div>
-            <div class="match-team-right">{team_label_html(away)}</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    with c_team_h:
+        st.markdown(
+            f"<div class='match-single-team-left'>{team_label_html(home)}</div>",
+            unsafe_allow_html=True
+        )
 
-    c1, c2 = st.columns([1.1, .42])
-    with c1:
-        d1, d2, d3, d4 = st.columns([.70, .55, .55, .62])
-        with d1:
-            if st.button("🎲 Jogar", key=f"sim_one_{mid}", use_container_width=True):
-                store_simulated_match(m)
-                st.rerun()
-        with d2:
-            hg = st.number_input(f"Gols {home}", min_value=0, max_value=15, key=f"{mid}_hg", label_visibility="collapsed")
-        with d3:
-            ag = st.number_input(f"Gols {away}", min_value=0, max_value=15, key=f"{mid}_ag", label_visibility="collapsed")
-        with d4:
-            played = st.checkbox("OK", key=f"{mid}_played")
+    with c_hg:
+        hg = st.number_input(
+            f"Gols {home}",
+            min_value=0,
+            max_value=15,
+            key=f"{mid}_hg",
+            label_visibility="collapsed"
+        )
 
-    st.session_state.results[mid] = {"home_goals": int(hg), "away_goals": int(ag), "played": bool(played)}
+    with c_x:
+        st.markdown("<div class='match-x'>x</div>", unsafe_allow_html=True)
+
+    with c_ag:
+        ag = st.number_input(
+            f"Gols {away}",
+            min_value=0,
+            max_value=15,
+            key=f"{mid}_ag",
+            label_visibility="collapsed"
+        )
+
+    with c_team_a:
+        st.markdown(
+            f"<div class='match-single-team-right'>{team_label_html(away)}</div>",
+            unsafe_allow_html=True
+        )
+
+    with c_details:
+        played = st.checkbox("OK", key=f"{mid}_played")
+
+    st.session_state.results[mid] = {
+        "home_goals": int(hg),
+        "away_goals": int(ag),
+        "played": bool(played)
+    }
 
     if played and mid not in st.session_state.discipline:
         st.session_state.discipline[mid] = {
@@ -1473,11 +1548,18 @@ def render_match_input(m):
     if played:
         ensure_events_for_score(mid, home, away, int(hg), int(ag))
 
-    with c2:
+    dcol1, dcol2 = st.columns([.72, .28])
+    with dcol1:
+        if st.button("🎲 Jogar", key=f"sim_one_{mid}", use_container_width=True):
+            store_simulated_match(m)
+            st.rerun()
+
+    with dcol2:
         if hasattr(st, "popover"):
             detail_ctx = st.popover("⚙️", use_container_width=True)
         else:
             detail_ctx = st.expander("ℹ️ Súmula", expanded=False)
+
         with detail_ctx:
             st.markdown("**Ficha da partida**")
             st.markdown(
@@ -1485,16 +1567,23 @@ def render_match_input(m):
                 f"Ranking: {away} #{FIFA_RANKING[away]} · OVR titulares {lineup_ovr(away):.1f}</div>",
                 unsafe_allow_html=True
             )
+
             if st.button(f"🧩 Tática {home[:10]}", key=f"tactic_{mid}_{home}", use_container_width=True):
                 set_tactic_team(home)
                 st.toast(f"Prancheta aberta para {home}. Vá na aba 🧩 Tática.")
+
             if st.button(f"🧩 Tática {away[:10]}", key=f"tactic_{mid}_{away}", use_container_width=True):
                 set_tactic_team(away)
                 st.toast(f"Prancheta aberta para {away}. Vá na aba 🧩 Tática.")
+
             st.markdown("---")
             st.markdown("**Gols e assistências**")
+
             if played:
-                st.markdown(f"<div class='details-copy'>{event_summary_text(mid)}</div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div class='details-copy'>{event_summary_text(mid)}</div>",
+                    unsafe_allow_html=True
+                )
                 render_goal_selectors(mid, home, away, int(hg), int(ag))
             else:
                 st.caption("Confirme o jogo para registrar os eventos.")
@@ -1639,44 +1728,76 @@ def render_placeholder_card(label: str = "A definir"):
 
 
 def render_knockout_match_compact(m):
-    """PATCH VINTAGE: chave limpa; odds, eventos e tática ficam no popover."""
+    """
+    PATCH FINAL — PLACAR ÚNICO NO MATA-MATA:
+    remove o placar HTML duplicado e mantém apenas os inputs centrais.
+    Súmula, odds, eventos, tática e avanço de fase continuam iguais.
+    """
     mid, phase, home, away = m["id"], m["phase"], m["home"], m["away"]
-    current = st.session_state.results.get(mid, {"home_goals": 0, "away_goals": 0, "played": False, "winner": home})
+    current = st.session_state.results.get(
+        mid,
+        {"home_goals": 0, "away_goals": 0, "played": False, "winner": home}
+    )
 
     st.session_state.setdefault(f"{mid}_ko_hg", int(current.get("home_goals", 0)))
     st.session_state.setdefault(f"{mid}_ko_ag", int(current.get("away_goals", 0)))
     st.session_state.setdefault(f"{mid}_ko_played", bool(current.get("played", False)))
+
     if st.session_state.get(f"{mid}_winner") not in [home, away]:
         st.session_state[f"{mid}_winner"] = current.get("winner", home)
 
-    hg_view = int(st.session_state.get(f"{mid}_ko_hg", current.get("home_goals", 0)))
-    ag_view = int(st.session_state.get(f"{mid}_ko_ag", current.get("away_goals", 0)))
     played_now = bool(st.session_state.results.get(mid, {}).get("played", False))
     winner_now = st.session_state.results.get(mid, {}).get("winner", "")
     h_cls = "ko-winner-row" if winner_now == home and played_now else ""
     a_cls = "ko-winner-row" if winner_now == away and played_now else ""
 
-    st.markdown(f"""
-    <div class="ko-card-compact">
-        <div class="ko-card-header">{phase}</div>
-        <div class="ko-team-row {h_cls}">
-            <span class="ko-team-name">{team_label_html(home)}</span>
-            <span class="ko-score-pill">{hg_view}</span>
-        </div>
-        <div class="ko-team-row {a_cls}">
-            <span class="ko-team-name">{team_label_html(away)}</span>
-            <span class="ko-score-pill">{ag_view}</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    st.markdown(f"<div class='ko-card-header'>{phase}</div>", unsafe_allow_html=True)
 
-    # Ação primária compacta: placar e status.
-    c1, c2, c3 = st.columns([.46, .46, .42])
-    with c1:
-        hg = st.number_input(f"{home[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_hg", label_visibility="collapsed")
-    with c2:
-        ag = st.number_input(f"{away[:10]}", min_value=0, max_value=15, key=f"{mid}_ko_ag", label_visibility="collapsed")
-    with c3:
+    # Linha principal do confronto: escudo/nome + placar único + escudo/nome.
+    c_home, c_hg, c_x, c_ag, c_away = st.columns([1.15, .34, .08, .34, 1.15])
+
+    with c_home:
+        st.markdown(
+            f"<div class='match-single-team-left {h_cls}'>{team_label_html(home)}</div>",
+            unsafe_allow_html=True
+        )
+
+    with c_hg:
+        hg = st.number_input(
+            f"{home[:10]}",
+            min_value=0,
+            max_value=15,
+            key=f"{mid}_ko_hg",
+            label_visibility="collapsed"
+        )
+
+    with c_x:
+        st.markdown("<div class='match-x'>x</div>", unsafe_allow_html=True)
+
+    with c_ag:
+        ag = st.number_input(
+            f"{away[:10]}",
+            min_value=0,
+            max_value=15,
+            key=f"{mid}_ko_ag",
+            label_visibility="collapsed"
+        )
+
+    with c_away:
+        st.markdown(
+            f"<div class='match-single-team-right {a_cls}'>{team_label_html(away)}</div>",
+            unsafe_allow_html=True
+        )
+
+    b1, b2, b3 = st.columns([.44, .34, .22])
+
+    with b1:
+        if st.button("🎲 Jogar", key=f"sim_ko_one_{mid}", use_container_width=True):
+            simulate_knockout_match(m)
+            auto_advance_completed_rounds()
+            st.rerun()
+
+    with b2:
         played = st.checkbox("OK", key=f"{mid}_ko_played")
 
     if int(hg) > int(ag):
@@ -1684,37 +1805,40 @@ def render_knockout_match_compact(m):
     elif int(ag) > int(hg):
         winner = away
     else:
-        # Empate no mata-mata: vencedor escolhido nos detalhes para não quebrar a chave.
         winner = st.session_state.get(f"{mid}_winner", home)
 
-    st.session_state.results[mid] = {"home_goals": int(hg), "away_goals": int(ag), "played": bool(played), "winner": winner}
+    st.session_state.results[mid] = {
+        "home_goals": int(hg),
+        "away_goals": int(ag),
+        "played": bool(played),
+        "winner": winner
+    }
 
     if played:
         ensure_events_for_score(mid, home, away, int(hg), int(ag))
 
-    if hasattr(st, "popover"):
-        detail_ctx = st.popover("ℹ️", use_container_width=True)
-    else:
-        detail_ctx = st.expander("ℹ️ Súmula", expanded=False)
+    with b3:
+        if hasattr(st, "popover"):
+            detail_ctx = st.popover("ℹ️", use_container_width=True)
+        else:
+            detail_ctx = st.expander("ℹ️ Súmula", expanded=False)
 
     with detail_ctx:
         d1, d2 = st.columns(2)
+
         with d1:
-            if st.button("🎲 Jogar", key=f"sim_ko_one_{mid}", use_container_width=True):
-                simulate_knockout_match(m)
-                auto_advance_completed_rounds()
-                st.rerun()
-        with d2:
             if st.button("🧩 Tática", key=f"tactic_ko_{mid}", use_container_width=True):
                 set_tactic_team(home)
                 st.toast(f"Prancheta aberta para {home}. Vá na aba 🧩 Tática.")
 
-        if int(hg) == int(ag):
-            winner = st.selectbox("Quem passa se empatar?", [home, away], key=f"{mid}_winner")
-            st.session_state.results[mid]["winner"] = winner
+        with d2:
+            if int(hg) == int(ag):
+                winner = st.selectbox("Quem passa se empatar?", [home, away], key=f"{mid}_winner")
+                st.session_state.results[mid]["winner"] = winner
 
         p90 = match_probabilities(home, away, knockout=False)
         pko = match_probabilities(home, away, knockout=True)
+
         st.markdown(
             f"""
             <div class='details-copy'>
@@ -1731,10 +1855,15 @@ def render_knockout_match_compact(m):
             """,
             unsafe_allow_html=True
         )
+
         st.markdown("---")
         st.markdown("**Gols e assistências**")
+
         if played:
-            st.markdown(f"<div class='details-copy'>{event_summary_text(mid)}</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='details-copy'>{event_summary_text(mid)}</div>",
+                unsafe_allow_html=True
+            )
             render_goal_selectors(mid, home, away, int(hg), int(ag))
         else:
             st.caption("Feche o jogo para registrar os eventos.")
@@ -2032,8 +2161,12 @@ def final_ranking_table():
 # =========================
 # CABEÇALHO
 # =========================
-# PATCH MINIMALISMO: remove textos longos/frases de efeito.
+# PATCH ASSINATURA FINAL: mantém o topo limpo e adiciona a autoria discreta.
 st.title("Dashboard Simulador Copa 2026")
+st.markdown(
+    "<div class='creator-signature'>by <strong>Samuel França Jakecascavel</strong></div>",
+    unsafe_allow_html=True
+)
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Seleções", "48")
