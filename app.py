@@ -2208,7 +2208,7 @@ with tab_groups:
     direct, best_thirds, thirds_df = qualified_teams()
     show_thirds = thirds_df[["Grupo", "Seleção", "Time", "Pts", "J", "V", "E", "D", "GP", "GC", "SG", "Forma", "FP", "Ranking", "OVR"]].copy()
 
-    st.markdown("<div class='thirds-trigger-card'><div class='thirds-title'>Terceiros na briga</div><div class='muted'>Oito sobrevivem. O resto volta para casa.</div></div>", unsafe_allow_html=True)
+    st.markdown("<div class='thirds-trigger-card'><div class='thirds-title'>Terceiros na briga</div><div class='muted'>Oito melhores continuam. O resto tá eliminado.</div></div>", unsafe_allow_html=True)
 
     # Pop-up/Popover dos melhores terceiros: ocupa zero espaço enquanto fechado.
     if hasattr(st, "popover"):
